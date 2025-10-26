@@ -636,6 +636,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "price_cents": {
+          "name": "price_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "next_due_date": {
           "name": "next_due_date",
           "type": "date",
@@ -722,6 +728,78 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.visit_notes": {
+      "name": "visit_notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "visit_id": {
+          "name": "visit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "visit_note_visit_idx": {
+          "name": "visit_note_visit_idx",
+          "columns": [
+            {
+              "expression": "visit_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "visit_notes_visit_id_visits_id_fk": {
+          "name": "visit_notes_visit_id_visits_id_fk",
+          "tableFrom": "visit_notes",
+          "tableTo": "visits",
+          "columnsFrom": ["visit_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.visits": {
       "name": "visits",
       "schema": "",
@@ -739,17 +817,48 @@
           "primaryKey": false,
           "notNull": true
         },
-        "visit_date": {
-          "name": "visit_date",
-          "type": "date",
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "summary": {
-          "name": "summary",
-          "type": "text",
+        "status": {
+          "name": "status",
+          "type": "visit_status",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "scheduled"
+        },
+        "scheduled_start_at": {
+          "name": "scheduled_start_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "scheduled_end_at": {
+          "name": "scheduled_end_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "is_deleted": {
           "name": "is_deleted",
@@ -788,6 +897,36 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "visit_customer_idx": {
+          "name": "visit_customer_idx",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "visit_status_idx": {
+          "name": "visit_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -796,6 +935,15 @@
           "tableFrom": "visits",
           "tableTo": "pets",
           "columnsFrom": ["pet_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "visits_customer_id_customers_id_fk": {
+          "name": "visits_customer_id_customers_id_fk",
+          "tableFrom": "visits",
+          "tableTo": "customers",
+          "columnsFrom": ["customer_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -818,6 +966,11 @@
       "name": "pet_type",
       "schema": "public",
       "values": ["dog", "cat"]
+    },
+    "public.visit_status": {
+      "name": "visit_status",
+      "schema": "public",
+      "values": ["scheduled", "completed", "cancelled"]
     }
   },
   "schemas": {},

@@ -57,6 +57,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const petTypeEnum = pgEnum('pet_type', ['dog', 'cat']);
 export const petGenderEnum = pgEnum('pet_gender', ['male', 'female']);
+export const visitStatusEnum = pgEnum('visit_status', ['scheduled', 'completed', 'cancelled']);
 
 export const customers = pgTable(
   'customers',
@@ -116,6 +117,7 @@ export const customersRelations = relations(customers, ({ one, many }) => ({
   }),
   pets: many(pets),
   appointments: many(appointments),
+  visits: many(visits),
 }));
 
 export const petsRelations = relations(pets, ({ one, many }) => ({
@@ -155,8 +157,15 @@ export const visits = pgTable(
     petId: uuid('pet_id')
       .notNull()
       .references(() => pets.id),
-    visitDate: date('visit_date', { mode: 'date' }).notNull(),
-    summary: text('summary').notNull(),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    status: visitStatusEnum('status').notNull().default('scheduled'),
+    scheduledStartAt: timestamp('scheduled_start_at', { withTimezone: true }).notNull(),
+    scheduledEndAt: timestamp('scheduled_end_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    title: text('title'),
+    description: text('description'),
     isDeleted: boolean('is_deleted').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -164,6 +173,8 @@ export const visits = pgTable(
   (table) => {
     return {
       petIdx: index('visit_pet_idx').on(table.petId),
+      customerIdx: index('visit_customer_idx').on(table.customerId),
+      statusIdx: index('visit_status_idx').on(table.status),
     };
   }
 );
@@ -179,6 +190,7 @@ export const visitTreatments = pgTable(
     treatmentId: uuid('treatment_id')
       .notNull()
       .references(() => treatments.id),
+    priceCents: integer('price_cents'),
     nextDueDate: date('next_due_date', { mode: 'date' }),
     isDeleted: boolean('is_deleted').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -188,6 +200,24 @@ export const visitTreatments = pgTable(
     return {
       visitIdx: index('visit_treatment_visit_idx').on(table.visitId),
       treatmentIdx: index('visit_treatment_treatment_idx').on(table.treatmentId),
+    };
+  }
+);
+
+export const visitNotes = pgTable(
+  'visit_notes',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    visitId: uuid('visit_id')
+      .notNull()
+      .references(() => visits.id),
+    note: text('note').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      visitIdx: index('visit_note_visit_idx').on(table.visitId),
     };
   }
 );
@@ -232,6 +262,11 @@ export const visitsRelations = relations(visits, ({ one, many }) => ({
     references: [pets.id],
   }),
   visitTreatments: many(visitTreatments),
+  customer: one(customers, {
+    fields: [visits.customerId],
+    references: [customers.id],
+  }),
+  notes: many(visitNotes),
 }));
 
 export const visitTreatmentsRelations = relations(visitTreatments, ({ one }) => ({
@@ -253,5 +288,12 @@ export const appointmentsRelations = relations(appointments, ({ one }) => ({
   customer: one(customers, {
     fields: [appointments.customerId],
     references: [customers.id],
+  }),
+}));
+
+export const visitNotesRelations = relations(visitNotes, ({ one }) => ({
+  visit: one(visits, {
+    fields: [visitNotes.visitId],
+    references: [visits.id],
   }),
 }));

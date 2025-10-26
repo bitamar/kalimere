@@ -29,3 +29,12 @@ export const okResponseSchema = z.object({ ok: z.literal(true) });
 export const nullableNumber = z.union([z.number().finite(), z.literal(null)]);
 
 export const optionalNullableNumber = nullableNumber.optional();
+
+export const isoDateTime = z
+  .string()
+  .trim()
+  .datetime({ offset: true });
+
+export const nullableIsoDateTime = z.union([isoDateTime, z.literal(null)]);
+
+export const optionalNullableIsoDateTime = nullableIsoDateTime.optional();

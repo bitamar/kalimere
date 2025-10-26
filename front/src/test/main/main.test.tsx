@@ -46,6 +46,7 @@ describe('main.tsx entrypoint', () => {
   };
 
   beforeEach(() => {
+    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost');
     createRootMock.mockClear();
     renderMock.mockClear();
     document.body.innerHTML = '<div id="root"></div>';
@@ -59,6 +60,7 @@ describe('main.tsx entrypoint', () => {
 
   it('creates the root element and renders the app tree', async () => {
     vi.resetModules();
+    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost');
     await import('../../main');
 
     const rootElement = document.getElementById('root');
@@ -72,6 +74,7 @@ describe('main.tsx entrypoint', () => {
 
   it('includes ReactQueryDevtools when running in development', async () => {
     vi.stubEnv('DEV', true);
+    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost');
     vi.resetModules();
     await import('../../main');
 
@@ -81,6 +84,7 @@ describe('main.tsx entrypoint', () => {
 
   it('omits ReactQueryDevtools outside of development', async () => {
     vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost');
     vi.resetModules();
     await import('../../main');
 

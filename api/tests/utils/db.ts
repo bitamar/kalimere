@@ -6,6 +6,7 @@ import {
   pets,
   sessions,
   users,
+  visitNotes,
   visitTreatments,
   visits,
   treatments,
@@ -13,6 +14,7 @@ import {
 
 export async function resetDb() {
   await db.delete(visitTreatments);
+  await db.delete(visitNotes);
   await db.delete(appointments);
   await db.delete(visits);
   await db.delete(pets);
