@@ -23,12 +23,7 @@ import {
   type Pet,
   type UpdatePetBody,
 } from '../api/customers';
-import {
-  listPetVisits,
-  createVisit,
-  type CreateVisitBody,
-  type Visit,
-} from '../api/visits';
+import { listPetVisits, createVisit, type CreateVisitBody, type Visit } from '../api/visits';
 import { StatusCard } from '../components/StatusCard';
 import { queryKeys } from '../lib/queryKeys';
 import { extractErrorMessage } from '../lib/notifications';
@@ -40,10 +35,7 @@ import {
   type PetFormModalInitialValues,
   type PetFormSubmitValues,
 } from '../components/PetFormModal';
-import {
-  VisitFormModal,
-  type VisitFormSubmitValues,
-} from '../components/VisitFormModal';
+import { VisitFormModal, type VisitFormSubmitValues } from '../components/VisitFormModal';
 import { usePetUpdateMutation } from '../hooks/usePetUpdateMutation';
 
 export function PetDetail() {

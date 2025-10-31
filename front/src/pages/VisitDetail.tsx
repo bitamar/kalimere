@@ -27,7 +27,7 @@ import { getCustomer, getPet } from '../api/customers';
 import type { Customer, Pet } from '../api/customers';
 import { listTreatments } from '../api/treatments';
 import type { Treatment } from '../api/treatments';
-import { parseDateValue } from '../lib/date';
+import { formatDateAsLocalISO, parseDateValue } from '../lib/date';
 
 const visitStatusLabels: Record<VisitWithDetails['status'], string> = {
   scheduled: 'מתוכנן',
@@ -134,10 +134,7 @@ export function VisitDetail() {
   const visit = visitQuery.data;
   if (!visit) return null;
 
-  const customerQueryKey = useMemo(
-    () => queryKeys.customer(visit.customerId),
-    [visit.customerId]
-  );
+  const customerQueryKey = useMemo(() => queryKeys.customer(visit.customerId), [visit.customerId]);
 
   const petQueryKey = useMemo(
     () => [...queryKeys.pets(visit.customerId), visit.petId] as const,
@@ -152,7 +149,8 @@ export function VisitDetail() {
 
   const petQuery = useQuery({
     queryKey: petQueryKey,
-    queryFn: ({ signal }: { signal: AbortSignal }) => getPet(visit.customerId, visit.petId, { signal }),
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getPet(visit.customerId, visit.petId, { signal }),
     enabled: Boolean(visit.customerId && visit.petId),
   });
 
@@ -188,7 +186,10 @@ export function VisitDetail() {
     if (pet) {
       items.push({ title: pet.name, href: `/customers/${pet.customerId}/pets/${pet.id}` });
     } else {
-      items.push({ title: visit.petId, href: `/customers/${visit.customerId}/pets/${visit.petId}` });
+      items.push({
+        title: visit.petId,
+        href: `/customers/${visit.customerId}/pets/${visit.petId}`,
+      });
     }
 
     items.push({ title: getVisitTitle(visit), href: '#' });
@@ -227,7 +228,9 @@ export function VisitDetail() {
     errorToast: { fallbackMessage: 'עדכון הביקור נכשל' },
     onSuccess: (data) => {
       queryClient.setQueryData(visitQueryKey, data);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.petVisits(data.customerId, data.petId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.petVisits(data.customerId, data.petId),
+      });
     },
   });
 
@@ -252,10 +255,7 @@ export function VisitDetail() {
       priceCents = Math.round(treatmentPrice * 100);
     }
 
-    const nextDueDate =
-      treatmentNextDueDate !== null
-        ? treatmentNextDueDate.toISOString().slice(0, 10)
-        : null;
+    const nextDueDate = treatmentNextDueDate ? formatDateAsLocalISO(treatmentNextDueDate) : null;
 
     await updateVisitMutation.mutateAsync({
       visitId,

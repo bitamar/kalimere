@@ -32,7 +32,10 @@ export async function listPetVisits(
   options: RequestOptions = {}
 ): Promise<Visit[]> {
   const requestInit = options.signal ? { signal: options.signal } : undefined;
-  const json = await fetchJson<unknown>(`/customers/${customerId}/pets/${petId}/visits`, requestInit);
+  const json = await fetchJson<unknown>(
+    `/customers/${customerId}/pets/${petId}/visits`,
+    requestInit
+  );
   const result = visitsListResponseSchema.parse(json);
   return result.visits;
 }
@@ -47,7 +50,10 @@ export async function createVisit(input: CreateVisitBody): Promise<Visit> {
   return result.visit;
 }
 
-export async function getVisit(visitId: string, options: RequestOptions = {}): Promise<VisitWithDetails> {
+export async function getVisit(
+  visitId: string,
+  options: RequestOptions = {}
+): Promise<VisitWithDetails> {
   const params = visitParamsSchema.parse({ id: visitId });
   const requestInit = options.signal ? { signal: options.signal } : undefined;
   const json = await fetchJson<unknown>(`/visits/${params.id}`, requestInit);
