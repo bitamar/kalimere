@@ -14,7 +14,7 @@ import {
   Text,
   Textarea,
 } from '@mantine/core';
-import { DatePickerInput, type DateValue } from '@mantine/dates';
+import { DatePickerInput } from '@mantine/dates';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusCard } from '../components/StatusCard';
 import { PageTitle } from '../components/PageTitle';
@@ -27,6 +27,7 @@ import { getCustomer, getPet } from '../api/customers';
 import type { Customer, Pet } from '../api/customers';
 import { listTreatments } from '../api/treatments';
 import type { Treatment } from '../api/treatments';
+import { parseDateValue } from '../lib/date';
 
 const visitStatusLabels: Record<VisitWithDetails['status'], string> = {
   scheduled: 'מתוכנן',
@@ -39,11 +40,6 @@ const visitStatusColors: Record<VisitWithDetails['status'], string> = {
   completed: 'teal',
   cancelled: 'gray',
 };
-
-function parseDateValue(value: DateValue): Date | null {
-  if (!value) return null;
-  return value instanceof Date ? value : new Date(value);
-}
 
 function formatDateTime(value: string | null) {
   if (!value) return 'לא צוין';

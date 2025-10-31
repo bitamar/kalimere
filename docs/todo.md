@@ -64,15 +64,40 @@
 
 ## MVP / Core Features
 - [ ] pets view
-- [ ] allow to record/schedule a visit to a pet
-- [ ] create an invoice for a visit
-- [ ] all visits view for the user, with a calendar
 - [ ] make sure all queries can only return data belonging to the current user (Auth)
-- [ ] Visit entity - user can record / schedule visits to pets. visit has list of treatments, each one should be able to override default price and default recurring date. should have list of notes
-- [ ] Invoice entity - user can create an invoice for a visit, with treatments, prices, total, paid/unpaid status
+
+## Visit Roadmap
+
+### Core Experience
+- [x] allow to record/schedule a visit to a pet
+- [x] Visit entity - user can record / schedule visits to pets. visit has list of treatments, each one should be able to override default price and default recurring date. should have list of notes
+- [ ] all visits view for the user, with a calendar
+- [ ] visit status tracking (scheduled, completed, cancelled)
 - [ ] create future visits, probably a nightly job
+- [ ] recurring visit scheduling
+
+### Treatments & Records
+- [ ] edit/cancel visits
+- [ ] edit/update treatment records
+- [ ] upload files to visits (x-rays, test results)
+- [ ] auto-generate visit summaries from notes
+
+### Communication & Reminders
+- [ ] on a visit, allow to tick a reminder option
+- [ ] send automated reminders (email/SMS)
 - [ ] on the customer level, allow a checkbox for sending whatsapp reminders for visits
 - [ ] on the customer level, show a log of activity including whatsapp reminders, and incoming whatsapp messages
+
+### Discovery & Insights
+- [ ] filter/sort visits (by date, status, customer)
+- [ ] filter/sort customers by recent visit activity
+- [ ] dashboard with key stats (visits this week, revenue, upcoming appointments)
+- [ ] charts for visit trends
+
+### Billing & Paperwork
+- [ ] create an invoice for a visit
+- [ ] Invoice entity - user can create an invoice for a visit, with treatments, prices, total, paid/unpaid status
+- [ ] export visit details / invoice
 
 ## Phase 1 - Polish & Essential Features
 
@@ -80,50 +105,36 @@
 - [x] only show the delete button when hovering over a card
 - [ ] make sure loading spinner behaviour is consistent
 - [ ] slide animation between customers > customer > pets
-- [x] confirmation dialogs for destructive actions (delete customer, pet, visit)
+- [x] confirmation dialogs for destructive actions (delete customer, pet)
 - [x] error states (empty states when no data, error messages)
 - [x] toast notifications for success/error actions
 
 ### Search & Filtering
 - [ ] search in customers view - by pet name, phone number etc
 - [ ] search in pets view
-- [ ] filter/sort customers (by date added, name, recent visits)
-- [ ] filter/sort visits (by date, status, customer)
+- [ ] filter/sort customers (by date added, name, engagement)
 
 ### Data Management
 - [x] edit customer details
 - [x] edit pet details
-- [ ] edit/cancel visits
-- [ ] edit/update treatment records
 
 ## Phase 2 - Advanced Features
 
-### Visits & Scheduling
-- [ ] on a visit, allow to tick a reminder option
-- [ ] send automated reminders (email/SMS)
-- [ ] recurring visit scheduling
-- [ ] visit status tracking (scheduled, completed, cancelled)
-
 ### Billing & Exports
-- [ ] export visit details / invoice
 - [ ] export customer/pet data (CSV/PDF)
 - [ ] payment tracking (paid/unpaid status)
 - [ ] pricing management for treatments
 
 ### File Management
 - [ ] upload/attach files to pets (medical records, photos)
-- [ ] upload files to visits (x-rays, test results)
 - [ ] image preview/gallery for pet photos
 
 ### Dashboard & Analytics
-- [ ] dashboard with key stats (visits this week, revenue, upcoming appointments)
-- [ ] charts for visit trends
 - [ ] recent activity feed
 
 ## Phase 3 - LLM Features
 - [ ] connect the api to a llm
 - [ ] generate a unique icon for each pet and customer
-- [ ] auto-generate visit summaries from notes
 - [ ] treatment recommendations based on symptoms
 
 ## Phase 4 - Advanced Admin & Polish

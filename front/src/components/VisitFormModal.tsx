@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TextInput, Textarea } from '@mantine/core';
-import { DateTimePicker, type DateValue } from '@mantine/dates';
+import { DateTimePicker } from '@mantine/dates';
 import { EntityFormModal } from './EntityFormModal';
+import { parseDateValue } from '../lib/date';
 
 export type VisitFormValues = {
   title: string;
@@ -31,11 +32,6 @@ const initialFormValues: VisitFormValues = {
   scheduledStartAt: null,
   scheduledEndAt: null,
 };
-
-function parseDateValue(value: DateValue): Date | null {
-  if (!value) return null;
-  return value instanceof Date ? value : new Date(value);
-}
 
 function toSubmitPayload(values: VisitFormValues): VisitFormSubmitValues | null {
   if (!values.scheduledStartAt) return null;
