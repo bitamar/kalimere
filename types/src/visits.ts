@@ -51,6 +51,18 @@ export const visitWithDetailsSchema = visitSchema.extend({
   notes: z.array(visitNoteSchema),
 });
 
+export const visitResponseSchema = z.object({
+  visit: visitSchema,
+});
+
+export const visitWithDetailsResponseSchema = z.object({
+  visit: visitWithDetailsSchema,
+});
+
+export const visitsListResponseSchema = z.object({
+  visits: z.array(visitSchema),
+});
+
 const visitTreatmentInputSchema = z
   .object({
     treatmentId: uuidSchema,
@@ -115,6 +127,9 @@ export type VisitTreatment = z.infer<typeof visitTreatmentSchema>;
 export type VisitNote = z.infer<typeof visitNoteSchema>;
 export type Visit = z.infer<typeof visitSchema>;
 export type VisitWithDetails = z.infer<typeof visitWithDetailsSchema>;
+export type VisitResponse = z.infer<typeof visitResponseSchema>;
+export type VisitWithDetailsResponse = z.infer<typeof visitWithDetailsResponseSchema>;
+export type VisitsListResponse = z.infer<typeof visitsListResponseSchema>;
 export type CreateVisitBody = z.infer<typeof createVisitBodySchema>;
 export type UpdateVisitParams = z.infer<typeof updateVisitParamsSchema>;
 export type UpdateVisitBody = z.infer<typeof updateVisitBodySchema>;
