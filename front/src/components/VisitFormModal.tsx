@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TextInput, Textarea } from '@mantine/core';
-import { DateTimePicker } from '@mantine/dates';
+import { DateTimePicker, type DateValue } from '@mantine/dates';
 import { EntityFormModal } from './EntityFormModal';
 
 export type VisitFormValues = {
@@ -31,6 +31,11 @@ const initialFormValues: VisitFormValues = {
   scheduledStartAt: null,
   scheduledEndAt: null,
 };
+
+function parseDateValue(value: DateValue): Date | null {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
+}
 
 function toSubmitPayload(values: VisitFormValues): VisitFormSubmitValues | null {
   if (!values.scheduledStartAt) return null;
@@ -93,12 +98,14 @@ export function VisitFormModal({
       submitDisabled={submitDisabled}
       submitLoading={submitLoading ?? false}
       submitLabel="תזמן"
-      modalProps={{ size: 'lg' }}
+      size="lg"
     >
       <DateTimePicker
         label="תחילת הביקור"
         value={values.scheduledStartAt}
-        onChange={(date) => setValues((prev) => ({ ...prev, scheduledStartAt: date }))}
+        onChange={(value) =>
+          setValues((prev) => ({ ...prev, scheduledStartAt: parseDateValue(value) }))
+        }
         required
         valueFormat="DD/MM/YYYY HH:mm"
       />
@@ -106,7 +113,9 @@ export function VisitFormModal({
       <DateTimePicker
         label="סיום מתוכנן"
         value={values.scheduledEndAt}
-        onChange={(date) => setValues((prev) => ({ ...prev, scheduledEndAt: date }))}
+        onChange={(value) =>
+          setValues((prev) => ({ ...prev, scheduledEndAt: parseDateValue(value) }))
+        }
         clearable
         valueFormat="DD/MM/YYYY HH:mm"
       />

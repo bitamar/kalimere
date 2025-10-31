@@ -14,7 +14,7 @@ import {
   Text,
   Textarea,
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput, type DateValue } from '@mantine/dates';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusCard } from '../components/StatusCard';
 import { PageTitle } from '../components/PageTitle';
@@ -39,6 +39,11 @@ const visitStatusColors: Record<VisitWithDetails['status'], string> = {
   completed: 'teal',
   cancelled: 'gray',
 };
+
+function parseDateValue(value: DateValue): Date | null {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
+}
 
 function formatDateTime(value: string | null) {
   if (!value) return 'לא צוין';
@@ -413,7 +418,7 @@ export function VisitDetail() {
               <DatePickerInput
                 label="תאריך טיפול הבא"
                 value={treatmentNextDueDate}
-                onChange={setTreatmentNextDueDate}
+                onChange={(value) => setTreatmentNextDueDate(parseDateValue(value))}
                 placeholder="לא חובה"
                 clearable
               />
