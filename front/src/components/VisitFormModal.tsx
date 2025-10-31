@@ -8,12 +8,10 @@ export type VisitFormValues = {
   title: string;
   description: string;
   scheduledStartAt: Date | null;
-  scheduledEndAt: Date | null;
 };
 
 export type VisitFormSubmitValues = {
   scheduledStartAt: string;
-  scheduledEndAt: string | null;
   title: string | null;
   description: string | null;
 };
@@ -30,7 +28,6 @@ const initialFormValues: VisitFormValues = {
   title: '',
   description: '',
   scheduledStartAt: null,
-  scheduledEndAt: null,
 };
 
 function toSubmitPayload(values: VisitFormValues): VisitFormSubmitValues | null {
@@ -41,7 +38,6 @@ function toSubmitPayload(values: VisitFormValues): VisitFormSubmitValues | null 
 
   return {
     scheduledStartAt: values.scheduledStartAt.toISOString(),
-    scheduledEndAt: values.scheduledEndAt ? values.scheduledEndAt.toISOString() : null,
     title: title.length > 0 ? title : null,
     description: description.length > 0 ? description : null,
   };
@@ -66,15 +62,8 @@ export function VisitFormModal({
       title: initialValues?.title ?? '',
       description: initialValues?.description ?? '',
       scheduledStartAt: initialValues?.scheduledStartAt ?? null,
-      scheduledEndAt: initialValues?.scheduledEndAt ?? null,
     });
-  }, [
-    opened,
-    initialValues?.title,
-    initialValues?.description,
-    initialValues?.scheduledStartAt,
-    initialValues?.scheduledEndAt,
-  ]);
+  }, [opened, initialValues?.title, initialValues?.description, initialValues?.scheduledStartAt]);
 
   const submitDisabled = useMemo(() => values.scheduledStartAt === null, [values.scheduledStartAt]);
 
@@ -97,22 +86,12 @@ export function VisitFormModal({
       size="lg"
     >
       <DateTimePicker
-        label="תחילת הביקור"
+        label="מועד הביקור"
         value={values.scheduledStartAt}
         onChange={(value) =>
           setValues((prev) => ({ ...prev, scheduledStartAt: parseDateValue(value) }))
         }
         required
-        valueFormat="DD/MM/YYYY HH:mm"
-      />
-
-      <DateTimePicker
-        label="סיום מתוכנן"
-        value={values.scheduledEndAt}
-        onChange={(value) =>
-          setValues((prev) => ({ ...prev, scheduledEndAt: parseDateValue(value) }))
-        }
-        clearable
         valueFormat="DD/MM/YYYY HH:mm"
       />
 

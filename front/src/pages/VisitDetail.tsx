@@ -326,10 +326,7 @@ export function VisitDetail() {
                 visit.petId
               )}
             </Text>
-            <Text size="sm">תחילת ביקור: {formatDateTime(visit.scheduledStartAt)}</Text>
-            {visit.scheduledEndAt ? (
-              <Text size="sm">סיום מתוכנן: {formatDateTime(visit.scheduledEndAt)}</Text>
-            ) : null}
+            <Text size="sm">מועד ביקור: {formatDateTime(visit.scheduledStartAt)}</Text>
             {visit.completedAt ? (
               <Text size="sm">הושלם: {formatDateTime(visit.completedAt)}</Text>
             ) : null}

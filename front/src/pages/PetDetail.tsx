@@ -190,7 +190,6 @@ export function PetDetail() {
       customerId,
       petId,
       scheduledStartAt: values.scheduledStartAt,
-      scheduledEndAt: values.scheduledEndAt,
       title: values.title,
       description: values.description,
     };
@@ -446,44 +445,38 @@ export function PetDetail() {
             </Text>
           ) : (
             <Stack gap="sm">
-              {visits.map((visit) => {
-                const endLabel = visit.scheduledEndAt
-                  ? ` · סיום: ${formatDateTime(visit.scheduledEndAt)}`
-                  : '';
-                return (
-                  <Card key={visit.id} withBorder padding="md" radius="md" shadow="xs">
-                    <Stack gap="xs">
-                      <Group justify="space-between" align="flex-start">
-                        <Stack gap={4}>
-                          <Group gap="xs">
-                            <Text fw={600}>{getVisitTitle(visit)}</Text>
-                            <Badge variant="light" color={visitStatusColors[visit.status]}>
-                              {visitStatusLabels[visit.status]}
-                            </Badge>
-                          </Group>
+              {visits.map((visit) => (
+                <Card key={visit.id} withBorder padding="md" radius="md" shadow="xs">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="flex-start">
+                      <Stack gap={4}>
+                        <Group gap="xs">
+                          <Text fw={600}>{getVisitTitle(visit)}</Text>
+                          <Badge variant="light" color={visitStatusColors[visit.status]}>
+                            {visitStatusLabels[visit.status]}
+                          </Badge>
+                        </Group>
+                        <Text size="sm" c="dimmed">
+                          מועד: {formatDateTime(visit.scheduledStartAt)}
+                        </Text>
+                        {visit.completedAt ? (
                           <Text size="sm" c="dimmed">
-                            התחלה: {formatDateTime(visit.scheduledStartAt)}
-                            {endLabel}
+                            הושלם: {formatDateTime(visit.completedAt)}
                           </Text>
-                          {visit.completedAt ? (
-                            <Text size="sm" c="dimmed">
-                              הושלם: {formatDateTime(visit.completedAt)}
-                            </Text>
-                          ) : null}
-                        </Stack>
-                        <Button
-                          variant="light"
-                          size="xs"
-                          onClick={() => navigate(`/visits/${visit.id}`)}
-                        >
-                          צפה בפרטים
-                        </Button>
-                      </Group>
-                      {visit.description ? <Text size="sm">{visit.description}</Text> : null}
-                    </Stack>
-                  </Card>
-                );
-              })}
+                        ) : null}
+                      </Stack>
+                      <Button
+                        variant="light"
+                        size="xs"
+                        onClick={() => navigate(`/visits/${visit.id}`)}
+                      >
+                        צפה בפרטים
+                      </Button>
+                    </Group>
+                    {visit.description ? <Text size="sm">{visit.description}</Text> : null}
+                  </Stack>
+                </Card>
+              ))}
             </Stack>
           )}
         </Stack>
