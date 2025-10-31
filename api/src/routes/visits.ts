@@ -40,7 +40,11 @@ const visitRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/customers/:customerId/pets/:petId/visits',
     {
-      preHandler: [app.authenticate, ensureCustomerOwnership('customerId'), ensurePetOwnership('petId')],
+      preHandler: [
+        app.authenticate,
+        ensureCustomerOwnership('customerId'),
+        ensurePetOwnership('petId'),
+      ],
       schema: {
         params: customerPetParamsSchema,
         response: {

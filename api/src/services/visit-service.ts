@@ -39,11 +39,21 @@ function toNullableIsoString(value: Date | string | null | undefined): string | 
   return toIsoString(value);
 }
 
-function toDateInput(value: Date | string | null | undefined): string | null {
+function toDateOnlyValue(value: Date | string | null | undefined): Date | null {
   if (value === null || value === undefined) return null;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
+  return date;
+}
+
+function formatDateOnly(value: Date | string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function serializeVisit(record: VisitRecord): Visit {
@@ -68,7 +78,7 @@ function serializeVisitTreatment(record: VisitTreatmentRecord): VisitTreatment {
     visitId: record.visitId,
     treatmentId: record.treatmentId,
     priceCents: record.priceCents ?? null,
-    nextDueDate: toDateInput(record.nextDueDate),
+    nextDueDate: formatDateOnly(record.nextDueDate),
     createdAt: toIsoString(record.createdAt),
     updatedAt: toIsoString(record.updatedAt),
   };
@@ -84,7 +94,9 @@ function serializeVisitNote(record: VisitNoteRecord): VisitNote {
   };
 }
 
-function serializeVisitWithDetails(record: NonNullable<Awaited<ReturnType<typeof findVisitWithDetailsById>>>): VisitWithDetails {
+function serializeVisitWithDetails(
+  record: NonNullable<Awaited<ReturnType<typeof findVisitWithDetailsById>>>
+): VisitWithDetails {
   const base = serializeVisit(record);
   return {
     ...base,
@@ -109,7 +121,11 @@ export async function listVisitsForPet(petId: string) {
 }
 
 export async function createVisitForUser(userId: string, input: CreateVisitBody) {
-  const { customer, pet } = await ensureCustomerAndPetOwnership(userId, input.customerId, input.petId);
+  const { customer, pet } = await ensureCustomerAndPetOwnership(
+    userId,
+    input.customerId,
+    input.petId
+  );
 
   const values: Partial<VisitInsert> = {
     petId: pet.id,
@@ -133,21 +149,23 @@ export async function createVisitForUser(userId: string, input: CreateVisitBody)
 
   const visitId = record.id;
 
-  const treatmentsToCreate = input.treatments?.map((treatment) => ({
-    visitId,
-    treatmentId: treatment.treatmentId,
-    priceCents: treatment.priceCents ?? null,
-    nextDueDate: toDateInput(treatment.nextDueDate),
-  })) ?? [];
+  const treatmentsToCreate =
+    input.treatments?.map((treatment) => ({
+      visitId,
+      treatmentId: treatment.treatmentId,
+      priceCents: treatment.priceCents ?? null,
+      nextDueDate: toDateOnlyValue(treatment.nextDueDate),
+    })) ?? [];
 
   if (treatmentsToCreate.length > 0) {
     await createVisitTreatments(treatmentsToCreate);
   }
 
-  const notesToCreate = input.notes?.map((note) => ({
-    visitId,
-    note: note.note.trim(),
-  })) ?? [];
+  const notesToCreate =
+    input.notes?.map((note) => ({
+      visitId,
+      note: note.note.trim(),
+    })) ?? [];
 
   if (notesToCreate.length > 0) {
     await createVisitNotes(notesToCreate);
@@ -198,21 +216,23 @@ export async function updateVisitForUser(userId: string, visitId: string, input:
     if (!updated) throw notFound();
   }
 
-  const treatmentsToCreate = input.treatments?.map((treatment) => ({
-    visitId,
-    treatmentId: treatment.treatmentId,
-    priceCents: treatment.priceCents ?? null,
-    nextDueDate: toDateInput(treatment.nextDueDate),
-  })) ?? [];
+  const treatmentsToCreate =
+    input.treatments?.map((treatment) => ({
+      visitId,
+      treatmentId: treatment.treatmentId,
+      priceCents: treatment.priceCents ?? null,
+      nextDueDate: toDateOnlyValue(treatment.nextDueDate),
+    })) ?? [];
 
   if (treatmentsToCreate.length > 0) {
     await createVisitTreatments(treatmentsToCreate);
   }
 
-  const notesToCreate = input.notes?.map((note) => ({
-    visitId,
-    note: note.note.trim(),
-  })) ?? [];
+  const notesToCreate =
+    input.notes?.map((note) => ({
+      visitId,
+      note: note.note.trim(),
+    })) ?? [];
 
   if (notesToCreate.length > 0) {
     await createVisitNotes(notesToCreate);
