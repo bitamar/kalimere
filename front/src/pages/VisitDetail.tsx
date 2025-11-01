@@ -129,6 +129,86 @@ export function VisitDetail() {
   const visitError = visitQuery.error;
   const isVisitNotFound = visitError instanceof HttpError && visitError.status === 404;
 
+  const visit = visitData ?? null;
+  const customer = customerQuery.data as Customer | undefined;
+  const pet = petQuery.data as Pet | undefined;
+  const treatments = (treatmentsQuery.data as Treatment[] | undefined) ?? [];
+
+  const [noteText, setNoteText] = useState('');
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState<string | null>(null);
+  const [treatmentPrice, setTreatmentPrice] = useState<number | ''>('');
+  const [treatmentNextDueDate, setTreatmentNextDueDate] = useState<Date | null>(null);
+
+  const treatmentOptions = useMemo(
+    () => treatments.map((treatment) => ({ value: treatment.id, label: treatment.name })),
+    [treatments]
+  );
+
+  const treatmentNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const treatment of treatments) {
+      map.set(treatment.id, treatment.name);
+    }
+    return map;
+  }, [treatments]);
+
+  const breadcrumbItems = useMemo(() => {
+    const items = [{ title: 'לקוחות', href: '/customers' }];
+
+    if (!visit) {
+      items.push({ title: 'ביקור', href: '#' });
+    } else {
+      if (customer) {
+        items.push({ title: customer.name, href: `/customers/${customer.id}` });
+      }
+
+      if (pet) {
+        items.push({ title: pet.name, href: `/customers/${pet.customerId}/pets/${pet.id}` });
+      } else {
+        items.push({
+          title: visit.petId,
+          href: `/customers/${visit.customerId}/pets/${visit.petId}`,
+        });
+      }
+
+      items.push({ title: getVisitTitle(visit), href: '#' });
+    }
+
+    return items.map((item, index) => {
+      const isActive = item.href === '#';
+      return (
+        <Anchor
+          key={index}
+          onClick={(event) => {
+            event.preventDefault();
+            if (!isActive) navigate(item.href);
+          }}
+          style={{ cursor: isActive ? 'default' : 'pointer' }}
+          {...(isActive ? { c: 'dimmed' } : {})}
+        >
+          {item.title}
+        </Anchor>
+      );
+    });
+  }, [customer, navigate, pet, visit]);
+
+  const treatmentsErrorMessage = treatmentsQuery.error
+    ? extractErrorMessage(treatmentsQuery.error, 'אירעה שגיאה בטעינת רשימת הטיפולים')
+    : null;
+
+  const updateVisitMutation = useApiMutation({
+    mutationFn: ({ visitId: id, payload }: { visitId: string; payload: UpdateVisitBody }) =>
+      updateVisit(id, payload),
+    successToast: { message: 'הביקור עודכן בהצלחה' },
+    errorToast: { fallbackMessage: 'עדכון הביקור נכשל' },
+    onSuccess: (data) => {
+      queryClient.setQueryData(visitQueryKey, data);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.petVisits(data.customerId, data.petId),
+      });
+    },
+  });
+
   if (!visitId || isVisitNotFound) {
     return (
       <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
@@ -169,83 +249,7 @@ export function VisitDetail() {
     );
   }
 
-  const visit = visitData;
   if (!visit) return null;
-
-  const customer = customerQuery.data as Customer | undefined;
-  const pet = petQuery.data as Pet | undefined;
-  const treatments = (treatmentsQuery.data as Treatment[] | undefined) ?? [];
-
-  const treatmentOptions = useMemo(
-    () => treatments.map((treatment) => ({ value: treatment.id, label: treatment.name })),
-    [treatments]
-  );
-
-  const treatmentNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const treatment of treatments) {
-      map.set(treatment.id, treatment.name);
-    }
-    return map;
-  }, [treatments]);
-
-  const breadcrumbItems = useMemo(() => {
-    const items = [{ title: 'לקוחות', href: '/customers' }];
-
-    if (customer) {
-      items.push({ title: customer.name, href: `/customers/${customer.id}` });
-    }
-
-    if (pet) {
-      items.push({ title: pet.name, href: `/customers/${pet.customerId}/pets/${pet.id}` });
-    } else {
-      items.push({
-        title: visit.petId,
-        href: `/customers/${visit.customerId}/pets/${visit.petId}`,
-      });
-    }
-
-    items.push({ title: getVisitTitle(visit), href: '#' });
-
-    return items.map((item, index) => {
-      const isActive = item.href === '#';
-      return (
-        <Anchor
-          key={index}
-          onClick={(event) => {
-            event.preventDefault();
-            if (!isActive) navigate(item.href);
-          }}
-          style={{ cursor: isActive ? 'default' : 'pointer' }}
-          {...(isActive ? { c: 'dimmed' } : {})}
-        >
-          {item.title}
-        </Anchor>
-      );
-    });
-  }, [customer, navigate, pet, visit]);
-
-  const treatmentsErrorMessage = treatmentsQuery.error
-    ? extractErrorMessage(treatmentsQuery.error, 'אירעה שגיאה בטעינת רשימת הטיפולים')
-    : null;
-
-  const [noteText, setNoteText] = useState('');
-  const [selectedTreatmentId, setSelectedTreatmentId] = useState<string | null>(null);
-  const [treatmentPrice, setTreatmentPrice] = useState<number | ''>('');
-  const [treatmentNextDueDate, setTreatmentNextDueDate] = useState<Date | null>(null);
-
-  const updateVisitMutation = useApiMutation({
-    mutationFn: ({ visitId: id, payload }: { visitId: string; payload: UpdateVisitBody }) =>
-      updateVisit(id, payload),
-    successToast: { message: 'הביקור עודכן בהצלחה' },
-    errorToast: { fallbackMessage: 'עדכון הביקור נכשל' },
-    onSuccess: (data) => {
-      queryClient.setQueryData(visitQueryKey, data);
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.petVisits(data.customerId, data.petId),
-      });
-    },
-  });
 
   const addNoteDisabled = noteText.trim().length === 0 || updateVisitMutation.isPending;
   const addTreatmentDisabled = !selectedTreatmentId || updateVisitMutation.isPending;

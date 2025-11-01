@@ -81,6 +81,7 @@ type RenderVisitOptions = {
   treatments?: Treatment[];
   route?: string;
   visitError?: unknown;
+  prefetchVisit?: boolean;
 };
 
 async function renderVisitDetailPage({
@@ -90,6 +91,7 @@ async function renderVisitDetailPage({
   treatments = treatmentCatalog,
   route = `/visits/${visit.id}`,
   visitError,
+  prefetchVisit = true,
 }: RenderVisitOptions = {}) {
   if (!document.getElementById('__mantine-portal')) {
     const portalRoot = document.createElement('div');
@@ -111,7 +113,7 @@ async function renderVisitDetailPage({
         },
       })
       .catch(() => {});
-  } else {
+  } else if (prefetchVisit) {
     await queryClient.prefetchQuery({
       queryKey: visitKey,
       queryFn: async () => visit,
@@ -204,6 +206,18 @@ describe('VisitDetail page', () => {
     }
     await userEvent.click(petLink);
     expect(navigateMock).toHaveBeenCalledWith('/customers/cust-1/pets/pet-1');
+  });
+
+  it('handles visit loading transitions without hook order issues', async () => {
+    getVisitMock.mockResolvedValueOnce(baseVisit);
+
+    await renderVisitDetailPage({ prefetchVisit: false });
+
+    await waitFor(() => {
+      expect(getVisitMock).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByRole('heading', { name: baseVisit.title! })).toBeInTheDocument();
   });
 
   it('allows adding a note to the visit', async () => {
