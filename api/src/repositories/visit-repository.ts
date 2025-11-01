@@ -1,6 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { visitNotes, visitTreatments, visits } from '../db/schema.js';
+import { customers, pets, visitNotes, visitTreatments, visits } from '../db/schema.js';
 
 export type VisitRecord = (typeof visits)['$inferSelect'];
 export type VisitInsert = (typeof visits)['$inferInsert'];
@@ -31,30 +31,46 @@ export async function findActiveVisitsByPetId(petId: string) {
 }
 
 export async function findVisitWithCustomerById(visitId: string) {
-  return db.query.visits.findFirst({
-    where: and(eq(visits.id, visitId), eq(visits.isDeleted, false)),
-    with: {
-      customer: true,
-      pet: true,
-    },
-  });
+  const rows = await db
+    .select({ visit: visits, customer: customers, pet: pets })
+    .from(visits)
+    .leftJoin(customers, eq(customers.id, visits.customerId))
+    .leftJoin(pets, eq(pets.id, visits.petId))
+    .where(and(eq(visits.id, visitId), eq(visits.isDeleted, false)))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) return null;
+
+  return {
+    ...row.visit,
+    customer: row.customer ?? null,
+    pet: row.pet ?? null,
+  };
 }
 
 export async function findVisitWithDetailsById(visitId: string) {
-  return db.query.visits.findFirst({
-    where: and(eq(visits.id, visitId), eq(visits.isDeleted, false)),
-    with: {
-      customer: true,
-      pet: true,
-      visitTreatments: {
-        where: eq(visitTreatments.isDeleted, false),
-        orderBy: asc(visitTreatments.createdAt),
-      },
-      notes: {
-        orderBy: asc(visitNotes.createdAt),
-      },
-    },
-  });
+  const base = await findVisitWithCustomerById(visitId);
+  if (!base) return null;
+
+  const [treatments, notes] = await Promise.all([
+    db
+      .select()
+      .from(visitTreatments)
+      .where(and(eq(visitTreatments.visitId, visitId), eq(visitTreatments.isDeleted, false)))
+      .orderBy(asc(visitTreatments.createdAt)),
+    db
+      .select()
+      .from(visitNotes)
+      .where(eq(visitNotes.visitId, visitId))
+      .orderBy(asc(visitNotes.createdAt)),
+  ]);
+
+  return {
+    ...base,
+    visitTreatments: treatments,
+    notes,
+  };
 }
 
 export async function createVisitTreatments(values: VisitTreatmentInsert[]) {

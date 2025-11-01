@@ -67,3 +67,20 @@ export async function seedPet(customerId: string, data: { name: string; type?: '
     .returning();
   return pet;
 }
+
+export async function seedTreatment(
+  userId: string,
+  data: { name: string; price?: number | null; defaultIntervalMonths?: number | null }
+) {
+  const [treatment] = await db
+    .insert(treatments)
+    .values({
+      userId,
+      name: data.name,
+      price: data.price ?? null,
+      defaultIntervalMonths: data.defaultIntervalMonths ?? null,
+    })
+    .returning();
+
+  return treatment;
+}
