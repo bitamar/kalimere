@@ -13,6 +13,7 @@ import {
 } from '../repositories/visit-repository.js';
 import { findCustomerByIdForUser } from '../repositories/customer-repository.js';
 import { findPetByIdForCustomer } from '../repositories/pet-repository.js';
+import { findTreatmentByIdForUser } from '../repositories/treatment-repository.js';
 import { notFound } from '../lib/app-error.js';
 import {
   type CreateVisitBody,
@@ -115,6 +116,28 @@ async function ensureCustomerAndPetOwnership(userId: string, customerId: string,
   return { customer, pet } as const;
 }
 
+async function ensureTreatmentsBelongToUser(
+  userId: string,
+  treatments: ReadonlyArray<{ treatmentId: string }> | undefined
+) {
+  if (!treatments || treatments.length === 0) return;
+
+  const ids = new Set<string>();
+  for (const treatment of treatments) {
+    if (typeof treatment.treatmentId !== 'string' || treatment.treatmentId.length === 0) {
+      throw notFound();
+    }
+    ids.add(treatment.treatmentId);
+  }
+
+  await Promise.all(
+    Array.from(ids).map(async (treatmentId) => {
+      const record = await findTreatmentByIdForUser(userId, treatmentId);
+      if (!record) throw notFound();
+    })
+  );
+}
+
 export async function listVisitsForPet(petId: string) {
   const records = await findActiveVisitsByPetId(petId);
   return records.map((record) => serializeVisit(record));
@@ -126,6 +149,8 @@ export async function createVisitForUser(userId: string, input: CreateVisitBody)
     input.customerId,
     input.petId
   );
+
+  await ensureTreatmentsBelongToUser(userId, input.treatments);
 
   const values: Partial<VisitInsert> = {
     petId: pet.id,
@@ -191,6 +216,8 @@ export async function getVisitForUser(userId: string, visitId: string) {
 
 export async function updateVisitForUser(userId: string, visitId: string, input: UpdateVisitBody) {
   await ensureVisitBelongsToUser(userId, visitId);
+
+  await ensureTreatmentsBelongToUser(userId, input.treatments);
 
   const updates: Partial<VisitInsert> = {};
 

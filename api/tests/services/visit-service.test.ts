@@ -221,4 +221,61 @@ describe('visit-service', () => {
       })
     ).rejects.toHaveProperty('statusCode', 404);
   });
+
+  it('rejects creating visits with treatments the user does not own', async () => {
+    const { user } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Fido', type: 'dog' });
+
+    const { user: otherUser } = await createTestUserWithSession();
+    const otherTreatment = await seedTreatment(otherUser.id, {
+      name: 'External treatment',
+      price: 1200,
+    });
+
+    await expect(
+      createVisitForUser(user.id, {
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: '2025-08-01T10:00:00.000Z',
+        treatments: [
+          {
+            treatmentId: otherTreatment.id,
+            priceCents: 1500,
+            nextDueDate: '2025-08-10',
+          },
+        ],
+      })
+    ).rejects.toHaveProperty('statusCode', 404);
+  });
+
+  it('rejects updating visits when adding treatments the user does not own', async () => {
+    const { user } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Fido', type: 'dog' });
+
+    const visit = await createVisitForUser(user.id, {
+      customerId: customer.id,
+      petId: pet.id,
+      scheduledStartAt: '2025-09-01T09:00:00.000Z',
+    });
+
+    const { user: otherUser } = await createTestUserWithSession();
+    const otherTreatment = await seedTreatment(otherUser.id, {
+      name: 'External update treatment',
+      price: 1800,
+    });
+
+    await expect(
+      updateVisitForUser(user.id, visit.id, {
+        treatments: [
+          {
+            treatmentId: otherTreatment.id,
+            priceCents: 2200,
+            nextDueDate: '2025-09-15',
+          },
+        ],
+      })
+    ).rejects.toHaveProperty('statusCode', 404);
+  });
 });
