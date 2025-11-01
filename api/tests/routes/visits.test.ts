@@ -87,6 +87,10 @@ describe('routes/visits', () => {
     const listResult = getJson<VisitsListResponse>(listResponse);
     expect(listResult.statusCode).toBe(200);
     expect(listResult.body.visits).toHaveLength(1);
+    expect(listResult.body.visits[0]).toMatchObject({
+      customerId: customer.id,
+      petId: pet.id,
+    });
 
     const visitId = createResult.body.visit.id;
 
