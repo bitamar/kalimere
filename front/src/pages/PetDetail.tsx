@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { IconDots, IconPencil, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDisclosure } from '@mantine/hooks';
 import {
   getPet,
   deletePet,
@@ -86,8 +87,9 @@ export function PetDetail() {
     enabled: Boolean(customerId),
   });
 
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [petFormOpen, setPetFormOpen] = useState(false);
+  const [deleteModalOpen, { open: openDeleteModal, close: closeDeleteModal }] =
+    useDisclosure(false);
+  const [petFormOpen, { open: openPetForm, close: closePetForm }] = useDisclosure(false);
   const [petFormInitialValues, setPetFormInitialValues] =
     useState<PetFormModalInitialValues | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -100,8 +102,8 @@ export function PetDetail() {
     );
   };
 
-  function closePetForm() {
-    setPetFormOpen(false);
+  function resetAndClosePetForm() {
+    closePetForm();
     setPetFormInitialValues(null);
   }
 
@@ -153,7 +155,7 @@ export function PetDetail() {
       }
     },
     onSuccess: () => {
-      setDeleteModalOpen(false);
+      closeDeleteModal();
       navigate(`/customers/${customerId}`);
     },
     onSettled: () => {
@@ -169,7 +171,7 @@ export function PetDetail() {
     customerId,
     petDetailQueryKey: petQueryKey,
     onSuccess: () => {
-      closePetForm();
+      resetAndClosePetForm();
     },
   });
 
@@ -351,7 +353,7 @@ export function PetDetail() {
       gender: ensuredPet.gender,
       breed: ensuredPet.breed ?? '',
     });
-    setPetFormOpen(true);
+    openPetForm();
   }
 
   const typeLabel = ensuredPet.type === 'dog' ? 'כלב' : 'חתול';
@@ -402,7 +404,7 @@ export function PetDetail() {
               leftSection={<IconX size={16} />}
               onClick={(e) => {
                 e.stopPropagation();
-                setDeleteModalOpen(true);
+                openDeleteModal();
               }}
             >
               מחק חיית מחמד
@@ -490,25 +492,21 @@ export function PetDetail() {
 
       <PetFormModal
         opened={petFormOpen}
-        onClose={closePetForm}
+        onClose={resetAndClosePetForm}
         mode="edit"
         submitLoading={petMutationInFlight}
         initialValues={petFormInitialValues}
         onSubmit={onSubmitPet}
       />
 
-      <Modal
-        opened={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        title="מחיקת חיית מחמד"
-      >
+      <Modal opened={deleteModalOpen} onClose={closeDeleteModal} title="מחיקת חיית מחמד">
         <Stack>
           <Text>
             האם אתה בטוח שברצונך למחוק את חיית המחמד "{ensuredPet.name}"? פעולה זו אינה ניתנת
             לביטול.
           </Text>
           <Group justify="right" mt="sm">
-            <Button variant="default" onClick={() => setDeleteModalOpen(false)}>
+            <Button variant="default" onClick={closeDeleteModal}>
               ביטול
             </Button>
             <Button
