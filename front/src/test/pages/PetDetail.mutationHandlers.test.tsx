@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
+import { act } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import { PetDetail } from '../../pages/PetDetail';
 import { queryKeys } from '../../lib/queryKeys';
@@ -157,5 +158,28 @@ describe('PetDetail mutation handlers', () => {
       queryKeys.customers(),
       context.previousCustomersList
     );
+  });
+
+  it('invalidates the visits list after scheduling a visit', () => {
+    renderPage();
+    const scheduleVisitOptions = capturedMutations.find(
+      (options) =>
+        options.successToast &&
+        typeof options.successToast !== 'boolean' &&
+        options.successToast.message === 'הביקור תוכנן בהצלחה'
+    );
+    if (!scheduleVisitOptions || !scheduleVisitOptions.onSuccess) {
+      throw new Error('scheduleVisit onSuccess missing');
+    }
+
+    const { onSuccess } = scheduleVisitOptions;
+
+    act(() => {
+      onSuccess(undefined as never, undefined as never, undefined, undefined as never);
+    });
+
+    expect(queryClientMock.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.petVisits(baseCustomer.id, basePet.id),
+    });
   });
 });

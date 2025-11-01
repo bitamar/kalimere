@@ -88,6 +88,44 @@ export function VisitDetail() {
     enabled: Boolean(visitId),
   });
 
+  const visitData = visitQuery.data;
+  const resolvedCustomerId = visitData?.customerId ?? null;
+  const resolvedPetId = visitData?.petId ?? null;
+
+  const customerQueryKey = useMemo(
+    () =>
+      resolvedCustomerId
+        ? queryKeys.customer(resolvedCustomerId)
+        : queryKeys.customer('placeholder'),
+    [resolvedCustomerId]
+  );
+
+  const petQueryKey = useMemo(
+    () =>
+      resolvedCustomerId && resolvedPetId
+        ? ([...queryKeys.pets(resolvedCustomerId), resolvedPetId] as const)
+        : ([...queryKeys.pets('placeholder'), 'placeholder'] as const),
+    [resolvedCustomerId, resolvedPetId]
+  );
+
+  const customerQuery = useQuery({
+    queryKey: customerQueryKey,
+    queryFn: ({ signal }: { signal: AbortSignal }) => getCustomer(resolvedCustomerId!, { signal }),
+    enabled: Boolean(resolvedCustomerId),
+  });
+
+  const petQuery = useQuery({
+    queryKey: petQueryKey,
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getPet(resolvedCustomerId!, resolvedPetId!, { signal }),
+    enabled: Boolean(resolvedCustomerId && resolvedPetId),
+  });
+
+  const treatmentsQuery = useQuery({
+    queryKey: queryKeys.treatments(),
+    queryFn: ({ signal }: { signal: AbortSignal }) => listTreatments({ signal }),
+  });
+
   const visitError = visitQuery.error;
   const isVisitNotFound = visitError instanceof HttpError && visitError.status === 404;
 
@@ -131,33 +169,8 @@ export function VisitDetail() {
     );
   }
 
-  const visit = visitQuery.data;
+  const visit = visitData;
   if (!visit) return null;
-
-  const customerQueryKey = useMemo(() => queryKeys.customer(visit.customerId), [visit.customerId]);
-
-  const petQueryKey = useMemo(
-    () => [...queryKeys.pets(visit.customerId), visit.petId] as const,
-    [visit.customerId, visit.petId]
-  );
-
-  const customerQuery = useQuery({
-    queryKey: customerQueryKey,
-    queryFn: ({ signal }: { signal: AbortSignal }) => getCustomer(visit.customerId, { signal }),
-    enabled: Boolean(visit.customerId),
-  });
-
-  const petQuery = useQuery({
-    queryKey: petQueryKey,
-    queryFn: ({ signal }: { signal: AbortSignal }) =>
-      getPet(visit.customerId, visit.petId, { signal }),
-    enabled: Boolean(visit.customerId && visit.petId),
-  });
-
-  const treatmentsQuery = useQuery({
-    queryKey: queryKeys.treatments(),
-    queryFn: ({ signal }: { signal: AbortSignal }) => listTreatments({ signal }),
-  });
 
   const customer = customerQuery.data as Customer | undefined;
   const pet = petQuery.data as Pet | undefined;

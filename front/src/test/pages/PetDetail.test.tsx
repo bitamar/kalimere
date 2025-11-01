@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { PetDetail } from '../../pages/PetDetail';
 import * as customersApi from '../../api/customers';
+import * as visitsApi from '../../api/visits';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import { suppressConsoleError } from '../utils/suppressConsoleError';
 import { HttpError } from '../../lib/http';
@@ -19,6 +20,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('../../api/customers');
+vi.mock('../../api/visits');
 
 const mockPet: customersApi.Pet = {
   id: 'pet-1',
@@ -46,6 +48,7 @@ describe('PetDetail page', () => {
   const getCustomerMock = vi.mocked(customersApi.getCustomer);
   const deletePetMock = vi.mocked(customersApi.deletePet);
   const updatePetMock = vi.mocked(customersApi.updatePet);
+  const listPetVisitsMock = vi.mocked(visitsApi.listPetVisits);
   let restoreConsoleError: (() => void) | null = null;
 
   beforeEach(() => {
@@ -55,6 +58,7 @@ describe('PetDetail page', () => {
     getCustomerMock.mockResolvedValue(mockCustomer);
     deletePetMock.mockResolvedValue();
     updatePetMock.mockResolvedValue(mockPet);
+    listPetVisitsMock.mockResolvedValue([]);
     restoreConsoleError?.();
     restoreConsoleError = null;
   });
@@ -241,5 +245,42 @@ describe('PetDetail page', () => {
     );
 
     expect(deletePetMock).not.toHaveBeenCalled();
+  });
+
+  it('renders visits and navigates to the visit detail page', async () => {
+    const visit = {
+      id: 'visit-1',
+      customerId: mockCustomer.id,
+      petId: mockPet.id,
+      status: 'scheduled' as const,
+      scheduledStartAt: '2024-04-10T09:30:00.000Z',
+      scheduledEndAt: null,
+      completedAt: null,
+      title: 'חיסון שנתי',
+      description: 'בדיקה כללית',
+      createdAt: '2024-04-01T10:00:00.000Z',
+      updatedAt: '2024-04-01T10:00:00.000Z',
+    };
+    listPetVisitsMock.mockResolvedValueOnce([visit]);
+
+    renderPetDetail();
+
+    await waitFor(() => expect(listPetVisitsMock).toHaveBeenCalled());
+
+    expect(await screen.findByText('חיסון שנתי')).toBeInTheDocument();
+    expect(screen.getByText('בדיקה כללית')).toBeInTheDocument();
+
+    const viewButton = await screen.findByRole('button', { name: 'צפה בפרטים' });
+    await userEvent.click(viewButton);
+    expect(navigateMock).toHaveBeenCalledWith(`/visits/${visit.id}`);
+  });
+
+  it('shows an error message when visit loading fails', async () => {
+    listPetVisitsMock.mockRejectedValueOnce(new Error('visit-failure'));
+    renderPetDetail();
+
+    await waitFor(() => expect(listPetVisitsMock).toHaveBeenCalled());
+
+    expect(await screen.findByText('visit-failure')).toBeInTheDocument();
   });
 });

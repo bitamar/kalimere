@@ -4,7 +4,9 @@ import type { DateValue } from '@mantine/dates';
  * Mantine date inputs may emit a Date, a string, or an array (range pickers),
  * so we normalize the value before storing it in state.
  */
-export function parseDateValue(value: DateValue): Date | null {
+export function parseDateValue(
+  value: DateValue | (DateValue | undefined)[] | null | undefined
+): Date | null {
   if (!value) return null;
   if (Array.isArray(value)) {
     const [first] = value;
