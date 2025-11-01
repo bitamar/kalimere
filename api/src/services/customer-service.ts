@@ -189,7 +189,6 @@ export async function createPetForCustomer(customerId: string, input: CreatePetB
     breed: input.breed ?? null,
     isSterilized: input.isSterilized ?? null,
     isCastrated: input.isCastrated ?? null,
-    imageUrl: null,
   };
 
   if (typeof input.dateOfBirth === 'string') {
