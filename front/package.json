@@ -11,9 +11,13 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "pretype-check": "npm run -w @kalimere/types build",
     "type-check": "tsc --noEmit",
+    "pretest": "npm run -w @kalimere/types build",
     "test": "vitest run",
+    "pretest:watch": "npm run -w @kalimere/types build",
     "test:watch": "vitest",
+    "pretest:coverage": "npm run -w @kalimere/types build",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

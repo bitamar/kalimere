@@ -33,6 +33,7 @@ const enrichPet = (pet: customersApi.PetSummary) => ({
   breed: null,
   isSterilized: null,
   isCastrated: null,
+  imageUrl: null,
 });
 
 const baseCustomer: customersApi.Customer = {
@@ -70,6 +71,7 @@ describe('CustomerDetail page', () => {
       breed: null,
       isSterilized: null,
       isCastrated: null,
+      imageUrl: null,
     });
     deleteCustomerMock.mockResolvedValue();
     deletePetMock.mockResolvedValue();
@@ -370,6 +372,7 @@ describe('CustomerDetail page', () => {
       breed: null,
       isSterilized: null,
       isCastrated: null,
+      imageUrl: null,
     }));
     getCustomerPetsMock.mockResolvedValueOnce(updatedPets);
 

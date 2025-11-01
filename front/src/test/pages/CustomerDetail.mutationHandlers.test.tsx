@@ -27,6 +27,7 @@ const basePets: Pet[] = [
     breed: null,
     isSterilized: null,
     isCastrated: null,
+    imageUrl: null,
   },
   {
     id: 'pet-2',
@@ -38,6 +39,7 @@ const basePets: Pet[] = [
     breed: null,
     isSterilized: null,
     isCastrated: null,
+    imageUrl: null,
   },
 ];
 

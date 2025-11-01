@@ -14,6 +14,7 @@ import {
   updateCustomerBodySchema,
   updateCustomerParamsSchema,
   updatePetBodySchema,
+  updatePetImageBodySchema,
 } from '@kalimere/types/customers';
 import { okResponseSchema } from '@kalimere/types/common';
 import { ensureCustomerOwnership, ensurePetOwnership } from '../middleware/ownership.js';
@@ -28,6 +29,8 @@ import {
   listPetsForCustomer,
   updateCustomerForUser,
   updatePetForCustomer,
+  removePetImageForCustomer,
+  updatePetImageForCustomer,
 } from '../services/customer-service.js';
 
 const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
@@ -180,6 +183,51 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     async (req) => {
       const customerId = req.params.customerId;
       const pet = await updatePetForCustomer(customerId, req.params.petId, req.body);
+      return { pet };
+    }
+  );
+
+  app.put(
+    '/customers/:customerId/pets/:petId/image',
+    {
+      preHandler: [
+        app.authenticate,
+        ensureCustomerOwnership('customerId'),
+        ensurePetOwnership('petId'),
+      ],
+      schema: {
+        params: customerPetParamsSchema,
+        body: updatePetImageBodySchema,
+        response: {
+          200: petResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      const customerId = req.params.customerId;
+      const pet = await updatePetImageForCustomer(customerId, req.params.petId, req.body.dataUrl);
+      return { pet };
+    }
+  );
+
+  app.delete(
+    '/customers/:customerId/pets/:petId/image',
+    {
+      preHandler: [
+        app.authenticate,
+        ensureCustomerOwnership('customerId'),
+        ensurePetOwnership('petId'),
+      ],
+      schema: {
+        params: customerPetParamsSchema,
+        response: {
+          200: petResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      const customerId = req.params.customerId;
+      const pet = await removePetImageForCustomer(customerId, req.params.petId);
       return { pet };
     }
   );
