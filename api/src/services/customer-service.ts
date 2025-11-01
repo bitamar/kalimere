@@ -18,7 +18,7 @@ import {
   type PetInsert,
   type PetRecord,
 } from '../repositories/pet-repository.js';
-import { notFound } from '../lib/app-error.js';
+import { badRequest, notFound } from '../lib/app-error.js';
 import {
   customerSchema,
   petSchema,
@@ -67,7 +67,58 @@ function serializePet(record: PetRecord): PetDto {
     breed: cleanNullableString(record.breed),
     isSterilized: record.isSterilized ?? null,
     isCastrated: record.isCastrated ?? null,
+    imageUrl: record.imageUrl ?? null,
   };
+}
+
+const allowedImageMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2MB
+
+function normalizeImageDataUrl(raw: string): string {
+  const value = raw.trim();
+  const match = /^data:([^;]+);base64,(.+)$/i.exec(value);
+  if (!match) {
+    throw badRequest({
+      code: 'invalid_image_data',
+      message: 'Invalid image data URL format',
+    });
+  }
+
+  const mimeType = (match[1] ?? '').toLowerCase();
+  if (!allowedImageMimeTypes.has(mimeType)) {
+    throw badRequest({
+      code: 'unsupported_image_type',
+      message: 'Unsupported image type',
+    });
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(match[2] ?? '', 'base64');
+  } catch (error) {
+    throw badRequest({
+      code: 'invalid_image_data',
+      message: 'Image data must be valid base64',
+      cause: error,
+    });
+  }
+
+  if (buffer.length === 0) {
+    throw badRequest({
+      code: 'invalid_image_data',
+      message: 'Image data cannot be empty',
+    });
+  }
+
+  if (buffer.length > MAX_IMAGE_BYTES) {
+    throw badRequest({
+      code: 'image_too_large',
+      message: 'Image exceeds the 2MB size limit',
+    });
+  }
+
+  const base64 = buffer.toString('base64');
+  return `data:${mimeType};base64,${base64}`;
 }
 
 export async function listCustomersForUser(userId: string) {
@@ -138,6 +189,7 @@ export async function createPetForCustomer(customerId: string, input: CreatePetB
     breed: input.breed ?? null,
     isSterilized: input.isSterilized ?? null,
     isCastrated: input.isCastrated ?? null,
+    imageUrl: null,
   };
 
   if (typeof input.dateOfBirth === 'string') {
@@ -173,6 +225,25 @@ export async function updatePetForCustomer(
 
   const updated = await updatePetById(petId, updates);
   if (!updated) throw new Error('Failed to update pet');
+  return serializePet(updated);
+}
+
+export async function updatePetImageForCustomer(customerId: string, petId: string, dataUrl: string) {
+  const record = await findPetByIdForCustomer(customerId, petId);
+  if (!record) throw notFound();
+
+  const normalized = normalizeImageDataUrl(dataUrl);
+  const updated = await updatePetById(petId, { imageUrl: normalized });
+  if (!updated) throw new Error('Failed to update pet image');
+  return serializePet(updated);
+}
+
+export async function removePetImageForCustomer(customerId: string, petId: string) {
+  const record = await findPetByIdForCustomer(customerId, petId);
+  if (!record) throw notFound();
+
+  const updated = await updatePetById(petId, { imageUrl: null });
+  if (!updated) throw new Error('Failed to remove pet image');
   return serializePet(updated);
 }
 

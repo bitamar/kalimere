@@ -96,6 +96,7 @@ export const pets = pgTable(
     type: petTypeEnum('type').notNull(),
     dateOfBirth: date('date_of_birth', { mode: 'date' }),
     breed: text('breed'),
+    imageUrl: text('image_url'),
     gender: petGenderEnum('gender').notNull(),
     isSterilized: boolean('is_sterilized'),
     isCastrated: boolean('is_castrated'),

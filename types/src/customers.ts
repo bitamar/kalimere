@@ -10,6 +10,18 @@ import {
   uuidSchema,
 } from './common.js';
 
+const allowedImageMimeTypes = ['image/png', 'image/jpeg', 'image/webp'] as const;
+
+const imageDataUrlSchema = z
+  .string()
+  .trim()
+  .refine((value) => {
+    if (!value.startsWith('data:')) return false;
+    const match = /^data:([^;]+);base64,/.exec(value);
+    if (!match) return false;
+    return (allowedImageMimeTypes as readonly string[]).includes(match[1] ?? '');
+  }, "Invalid image data URL");
+
 export const customerSchema = z.object({
   id: uuidSchema,
   name: z.string().trim(),
@@ -91,6 +103,7 @@ export const petSchema = z.object({
   breed: nullableString,
   isSterilized: z.union([z.boolean(), z.null()]),
   isCastrated: z.union([z.boolean(), z.null()]),
+  imageUrl: z.union([z.string(), z.null()]),
 });
 
 export const petResponseSchema = z.object({
@@ -131,6 +144,12 @@ export const updatePetBodySchema = z
     }
   });
 
+export const updatePetImageBodySchema = z
+  .object({
+    dataUrl: imageDataUrlSchema,
+  })
+  .strict();
+
 export type Customer = z.infer<typeof customerSchema>;
 export type CustomersListResponse = z.infer<typeof customersListResponseSchema>;
 export type CustomerResponse = z.infer<typeof customerResponseSchema>;
@@ -146,3 +165,4 @@ export type CustomerPetsParams = z.infer<typeof customerPetsParamsSchema>;
 export type CustomerPetParams = z.infer<typeof customerPetParamsSchema>;
 export type CustomerPetsResponse = z.infer<typeof customerPetsResponseSchema>;
 export type UpdatePetBody = z.infer<typeof updatePetBodySchema>;
+export type UpdatePetImageBody = z.infer<typeof updatePetImageBodySchema>;

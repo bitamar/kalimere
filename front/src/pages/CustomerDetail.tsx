@@ -7,6 +7,7 @@ import {
   Button,
   Container,
   Group,
+  Image,
   Menu,
   Modal,
   SimpleGrid,
@@ -44,6 +45,7 @@ import { HttpError } from '../lib/http';
 import { useApiMutation } from '../lib/useApiMutation';
 import { applyCustomerUpdates } from '../utils/entityUpdates';
 import { usePetUpdateMutation } from '../hooks/usePetUpdateMutation';
+import defaultPetImage from '../assets/pet-placeholder.svg';
 
 type PetFormState = {
   opened: boolean;
@@ -121,6 +123,7 @@ export function CustomerDetail() {
         breed: payload.breed ?? null,
         isSterilized: null,
         isCastrated: null,
+        imageUrl: null,
       };
       queryClient.setQueryData<Pet[]>(petsQueryKey, (old = []) => [...old, optimisticPet]);
       if (previousCustomer) {
@@ -625,7 +628,22 @@ export function CustomerDetail() {
               editAction={() => openEditPet(pet)}
               onClick={() => navigate(`/customers/${customer.id}/pets/${pet.id}`)}
               className="pet-card"
-            />
+            >
+              <Stack gap="xs">
+                <Image
+                  src={pet.imageUrl ?? defaultPetImage}
+                  alt={`תמונה של ${pet.name}`}
+                  radius="md"
+                  h={160}
+                  fit="cover"
+                />
+                {pet.breed && (
+                  <Text size="sm" c="dimmed">
+                    {pet.breed}
+                  </Text>
+                )}
+              </Stack>
+            </EntityCard>
           ))}
         </SimpleGrid>
       )}

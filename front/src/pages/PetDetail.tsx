@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Anchor,
@@ -8,6 +8,7 @@ import {
   Card,
   Container,
   Group,
+  Image,
   Menu,
   Modal,
   Stack,
@@ -19,13 +20,15 @@ import {
   getPet,
   deletePet,
   getCustomer,
+  updatePetImage,
+  deletePetImage,
   type Customer,
   type Pet,
   type UpdatePetBody,
 } from '../api/customers';
 import { StatusCard } from '../components/StatusCard';
 import { queryKeys } from '../lib/queryKeys';
-import { extractErrorMessage } from '../lib/notifications';
+import { extractErrorMessage, showErrorNotification } from '../lib/notifications';
 import { HttpError } from '../lib/http';
 import { useApiMutation } from '../lib/useApiMutation';
 import { PageTitle } from '../components/PageTitle';
@@ -35,6 +38,26 @@ import {
   type PetFormSubmitValues,
 } from '../components/PetFormModal';
 import { usePetUpdateMutation } from '../hooks/usePetUpdateMutation';
+import defaultPetImage from '../assets/pet-placeholder.svg';
+
+async function readFileAsDataUrl(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        resolve(result);
+      } else {
+        reject(new Error('Failed to read file'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const allowedImageMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 export function PetDetail() {
   const { customerId, petId } = useParams<{ customerId: string; petId: string }>();
@@ -67,6 +90,15 @@ export function PetDetail() {
   const [petFormOpen, setPetFormOpen] = useState(false);
   const [petFormInitialValues, setPetFormInitialValues] =
     useState<PetFormModalInitialValues | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const applyPetImageUpdate = (updatedPet: Pet | undefined) => {
+    if (!updatedPet) return;
+    queryClient.setQueryData<Pet | undefined>(petQueryKey, updatedPet);
+    queryClient.setQueryData<Pet[]>(petsListKey, (old = []) =>
+      old.map((petItem) => (petItem.id === updatedPet.id ? updatedPet : petItem))
+    );
+  };
 
   function closePetForm() {
     setPetFormOpen(false);
@@ -142,6 +174,73 @@ export function PetDetail() {
   });
 
   const petMutationInFlight = updatePetMutation.isPending;
+
+  const uploadPetImageMutation = useApiMutation<Pet, unknown, File>({
+    mutationFn: async (file) => {
+      if (!customerId || !petId) {
+        throw new Error('Missing pet identifiers');
+      }
+      if (!allowedImageMimeTypes.has(file.type)) {
+        throw new Error('סוג הקובץ אינו נתמך');
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        throw new Error('קובץ התמונה גדול מדי');
+      }
+      const dataUrl = await readFileAsDataUrl(file);
+      return updatePetImage(customerId, petId, { dataUrl });
+    },
+    successToast: { message: 'תמונת חיית המחמד עודכנה' },
+    errorToast: { fallbackMessage: 'עדכון תמונת חיית המחמד נכשל' },
+    onSuccess: (updatedPet) => {
+      applyPetImageUpdate(updatedPet);
+    },
+    onSettled: () => {
+      if (!customerId || !petId) return;
+      void queryClient.invalidateQueries({ queryKey: petsListKey });
+      void queryClient.invalidateQueries({ queryKey: petQueryKey });
+    },
+  });
+
+  const removePetImageMutation = useApiMutation<Pet, unknown, void>({
+    mutationFn: async () => {
+      if (!customerId || !petId) {
+        throw new Error('Missing pet identifiers');
+      }
+      return deletePetImage(customerId, petId);
+    },
+    successToast: { message: 'תמונת חיית המחמד הוסרה' },
+    errorToast: { fallbackMessage: 'הסרת תמונת חיית המחמד נכשלה' },
+    onSuccess: (updatedPet) => {
+      applyPetImageUpdate(updatedPet);
+    },
+    onSettled: () => {
+      if (!customerId || !petId) return;
+      void queryClient.invalidateQueries({ queryKey: petsListKey });
+      void queryClient.invalidateQueries({ queryKey: petQueryKey });
+    },
+  });
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0] ?? null;
+    event.currentTarget.value = '';
+    if (!file) return;
+
+    if (!allowedImageMimeTypes.has(file.type)) {
+      showErrorNotification('ניתן להעלות רק תמונות PNG, JPEG או WEBP');
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      showErrorNotification('ניתן להעלות תמונות עד גודל של 2MB');
+      return;
+    }
+
+    uploadPetImageMutation.mutate(file);
+  };
 
   async function onSubmitPet(values: PetFormSubmitValues) {
     if (!petId) return;
@@ -242,6 +341,9 @@ export function PetDetail() {
 
   const ensuredPet = pet;
 
+  const currentImage = ensuredPet.imageUrl ?? defaultPetImage;
+  const hasCustomImage = Boolean(ensuredPet.imageUrl);
+
   function openPetEditModal() {
     setPetFormInitialValues({
       name: ensuredPet.name,
@@ -313,6 +415,50 @@ export function PetDetail() {
           {typeLabel}
         </Badge>
       </Group>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
+      <Card withBorder shadow="sm" radius="md" padding="lg" mb="xl">
+        <Stack gap="md">
+          <Text size="lg" fw={600}>
+            תמונת חיית מחמד
+          </Text>
+          <Image src={currentImage} alt={`תמונה של ${ensuredPet.name}`} radius="md" h={240} fit="cover" />
+          <Group gap="sm">
+            <Button
+              onClick={handleUploadClick}
+              loading={uploadPetImageMutation.isPending}
+              disabled={removePetImageMutation.isPending}
+            >
+              העלה תמונה
+            </Button>
+            {hasCustomImage && (
+              <Button
+                variant="default"
+                onClick={() => removePetImageMutation.mutate()}
+                loading={removePetImageMutation.isPending}
+                disabled={uploadPetImageMutation.isPending}
+              >
+                הסר תמונה
+              </Button>
+            )}
+          </Group>
+          {!hasCustomImage && (
+            <Text size="sm" c="dimmed">
+              מוצגת תמונת ברירת מחדל עד שתעלה תמונה מותאמת אישית.
+            </Text>
+          )}
+          <Text size="xs" c="dimmed">
+            ניתן להעלות קבצי PNG, JPEG או WEBP עד לגודל של 2MB.
+          </Text>
+        </Stack>
+      </Card>
 
       <Card withBorder shadow="sm" radius="md" padding="lg" mb="xl">
         <Stack gap="md">

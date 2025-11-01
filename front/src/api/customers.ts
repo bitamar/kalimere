@@ -10,6 +10,7 @@ import {
   updateCustomerBodySchema,
   updateCustomerParamsSchema,
   updatePetBodySchema,
+  updatePetImageBodySchema,
 } from '@kalimere/types/customers';
 import type {
   CreateCustomerBody,
@@ -18,6 +19,7 @@ import type {
   Pet,
   UpdateCustomerBody,
   UpdatePetBody,
+  UpdatePetImageBody,
 } from '@kalimere/types/customers';
 
 export type {
@@ -31,6 +33,7 @@ export type {
   PetResponse,
   UpdateCustomerBody,
   UpdatePetBody,
+  UpdatePetImageBody,
 } from '@kalimere/types/customers';
 
 export type PetSummary = Pick<Pet, 'id' | 'name' | 'type'>;
@@ -122,6 +125,36 @@ export async function updatePet(
     method: 'PUT',
     body: JSON.stringify(payload),
   });
+  const result = petResponseSchema.parse(json);
+  return result.pet;
+}
+
+export async function updatePetImage(
+  customerId: string,
+  petId: string,
+  input: UpdatePetImageBody
+): Promise<Pet> {
+  const params = customerPetParamsSchema.parse({ customerId, petId });
+  const payload = updatePetImageBodySchema.parse(input);
+  const json = await fetchJson<unknown>(
+    `/customers/${params.customerId}/pets/${params.petId}/image`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }
+  );
+  const result = petResponseSchema.parse(json);
+  return result.pet;
+}
+
+export async function deletePetImage(customerId: string, petId: string): Promise<Pet> {
+  const params = customerPetParamsSchema.parse({ customerId, petId });
+  const json = await fetchJson<unknown>(
+    `/customers/${params.customerId}/pets/${params.petId}/image`,
+    {
+      method: 'DELETE',
+    }
+  );
   const result = petResponseSchema.parse(json);
   return result.pet;
 }
