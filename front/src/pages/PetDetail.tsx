@@ -13,7 +13,7 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { IconDots, IconPencil, IconX } from '@tabler/icons-react';
+import { IconCalendarPlus, IconDots, IconPencil, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getPet,
@@ -23,6 +23,7 @@ import {
   type Pet,
   type UpdatePetBody,
 } from '../api/customers';
+import { listPetVisits, createVisit, type CreateVisitBody, type Visit } from '../api/visits';
 import { StatusCard } from '../components/StatusCard';
 import { queryKeys } from '../lib/queryKeys';
 import { extractErrorMessage } from '../lib/notifications';
@@ -34,6 +35,7 @@ import {
   type PetFormModalInitialValues,
   type PetFormSubmitValues,
 } from '../components/PetFormModal';
+import { VisitFormModal, type VisitFormSubmitValues } from '../components/VisitFormModal';
 import { usePetUpdateMutation } from '../hooks/usePetUpdateMutation';
 
 export function PetDetail() {
@@ -51,6 +53,11 @@ export function PetDetail() {
     return [...queryKeys.pets(customerId), petId] as const;
   }, [customerId, petId]);
 
+  const petVisitsQueryKey = useMemo(() => {
+    if (!customerId || !petId) return ['pet-visits'] as const;
+    return queryKeys.petVisits(customerId, petId);
+  }, [customerId, petId]);
+
   const petQuery = useQuery({
     queryKey: petQueryKey,
     queryFn: ({ signal }: { signal: AbortSignal }) => getPet(customerId!, petId!, { signal }),
@@ -63,14 +70,26 @@ export function PetDetail() {
     enabled: Boolean(customerId),
   });
 
+  const visitsQuery = useQuery({
+    queryKey: petVisitsQueryKey,
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      listPetVisits(customerId!, petId!, { signal }),
+    enabled: Boolean(customerId && petId),
+  });
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [petFormOpen, setPetFormOpen] = useState(false);
   const [petFormInitialValues, setPetFormInitialValues] =
     useState<PetFormModalInitialValues | null>(null);
+  const [visitFormOpen, setVisitFormOpen] = useState(false);
 
   function closePetForm() {
     setPetFormOpen(false);
     setPetFormInitialValues(null);
+  }
+
+  function closeVisitForm() {
+    setVisitFormOpen(false);
   }
 
   const deletePetMutation = useApiMutation({
@@ -141,6 +160,17 @@ export function PetDetail() {
     },
   });
 
+  const scheduleVisitMutation = useApiMutation({
+    mutationFn: (payload: CreateVisitBody) => createVisit(payload),
+    successToast: { message: 'הביקור תוכנן בהצלחה' },
+    errorToast: { fallbackMessage: 'תזמון הביקור נכשל' },
+    onSuccess: () => {
+      closeVisitForm();
+      if (!customerId || !petId) return;
+      void queryClient.invalidateQueries({ queryKey: petVisitsQueryKey });
+    },
+  });
+
   const petMutationInFlight = updatePetMutation.isPending;
 
   async function onSubmitPet(values: PetFormSubmitValues) {
@@ -152,6 +182,18 @@ export function PetDetail() {
       breed: values.breed,
     };
     await updatePetMutation.mutateAsync({ petId, payload });
+  }
+
+  async function onScheduleVisit(values: VisitFormSubmitValues) {
+    if (!customerId || !petId) return;
+    const payload: CreateVisitBody = {
+      customerId,
+      petId,
+      scheduledStartAt: values.scheduledStartAt,
+      title: values.title,
+      description: values.description,
+    };
+    await scheduleVisitMutation.mutateAsync(payload);
   }
 
   const loading = petQuery.isPending || customerQuery.isPending;
@@ -241,6 +283,36 @@ export function PetDetail() {
   }
 
   const ensuredPet = pet;
+  const visits = visitsQuery.data ?? [];
+  const visitStatusLabels = {
+    scheduled: 'מתוכנן',
+    completed: 'הושלם',
+    cancelled: 'בוטל',
+  } satisfies Record<Visit['status'], string>;
+  const visitStatusColors: Record<Visit['status'], string> = {
+    scheduled: 'blue',
+    completed: 'teal',
+    cancelled: 'gray',
+  };
+
+  function formatDateTime(value: string | null) {
+    if (!value) return 'לא צוין';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('he-IL', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  }
+
+  function getVisitTitle(visit: Visit) {
+    if (visit.title) return visit.title;
+    const date = new Date(visit.scheduledStartAt);
+    if (!Number.isNaN(date.getTime())) {
+      return `ביקור ${date.toLocaleDateString('he-IL')}`;
+    }
+    return 'ביקור מתוזמן';
+  }
 
   function openPetEditModal() {
     setPetFormInitialValues({
@@ -254,6 +326,10 @@ export function PetDetail() {
 
   const typeLabel = ensuredPet.type === 'dog' ? 'כלב' : 'חתול';
   const genderLabel = ensuredPet.gender === 'male' ? 'זכר' : 'נקבה';
+  const visitsLoading = visitsQuery.isPending;
+  const visitsErrorMessage = visitsQuery.error
+    ? extractErrorMessage(visitsQuery.error, 'אירעה שגיאה בטעינת הביקורים')
+    : null;
 
   return (
     <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
@@ -335,6 +411,83 @@ export function PetDetail() {
           </Stack>
         </Stack>
       </Card>
+
+      <Card withBorder shadow="sm" radius="md" padding="lg" mb="xl">
+        <Stack gap="md">
+          <Group justify="space-between" align="flex-start">
+            <Stack gap={4}>
+              <Text size="lg" fw={600}>
+                ביקורים
+              </Text>
+              <Text size="sm" c="dimmed">
+                צפייה בביקורים מתוכננים והוספת הערות וטיפולים.
+              </Text>
+            </Stack>
+            <Button
+              leftSection={<IconCalendarPlus size={16} />}
+              onClick={() => setVisitFormOpen(true)}
+            >
+              תזמן ביקור
+            </Button>
+          </Group>
+
+          {visitsLoading ? (
+            <Text size="sm" c="dimmed">
+              טוען ביקורים...
+            </Text>
+          ) : visitsErrorMessage ? (
+            <Text size="sm" c="red">
+              {visitsErrorMessage}
+            </Text>
+          ) : visits.length === 0 ? (
+            <Text size="sm" c="dimmed">
+              עדיין לא תוזמנו ביקורים לחיה זו.
+            </Text>
+          ) : (
+            <Stack gap="sm">
+              {visits.map((visit) => (
+                <Card key={visit.id} withBorder padding="md" radius="md" shadow="xs">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="flex-start">
+                      <Stack gap={4}>
+                        <Group gap="xs">
+                          <Text fw={600}>{getVisitTitle(visit)}</Text>
+                          <Badge variant="light" color={visitStatusColors[visit.status]}>
+                            {visitStatusLabels[visit.status]}
+                          </Badge>
+                        </Group>
+                        <Text size="sm" c="dimmed">
+                          מועד: {formatDateTime(visit.scheduledStartAt)}
+                        </Text>
+                        {visit.completedAt ? (
+                          <Text size="sm" c="dimmed">
+                            הושלם: {formatDateTime(visit.completedAt)}
+                          </Text>
+                        ) : null}
+                      </Stack>
+                      <Button
+                        variant="light"
+                        size="xs"
+                        onClick={() => navigate(`/visits/${visit.id}`)}
+                      >
+                        צפה בפרטים
+                      </Button>
+                    </Group>
+                    {visit.description ? <Text size="sm">{visit.description}</Text> : null}
+                  </Stack>
+                </Card>
+              ))}
+            </Stack>
+          )}
+        </Stack>
+      </Card>
+
+      <VisitFormModal
+        opened={visitFormOpen}
+        onClose={closeVisitForm}
+        onSubmit={onScheduleVisit}
+        submitLoading={scheduleVisitMutation.isPending}
+      />
 
       <PetFormModal
         opened={petFormOpen}

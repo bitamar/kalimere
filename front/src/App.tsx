@@ -12,6 +12,7 @@ import { Settings } from './pages/Settings';
 import { Customers } from './pages/Customers';
 import { CustomerDetail } from './pages/CustomerDetail';
 import { PetDetail } from './pages/PetDetail';
+import { VisitDetail } from './pages/VisitDetail';
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import { GlobalLoadingIndicator } from './components/GlobalLoadingIndicator';
 
@@ -99,6 +100,7 @@ export default function AppRoutes() {
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:id" element={<CustomerDetail />} />
             <Route path="/customers/:customerId/pets/:petId" element={<PetDetail />} />
+            <Route path="/visits/:visitId" element={<VisitDetail />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
 
