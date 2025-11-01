@@ -116,6 +116,7 @@ describe('visit-service', () => {
     expect(visits[0]).toMatchObject({
       title: 'Later visit',
       scheduledEndAt: null,
+      customerId: customer.id,
     });
   });
 

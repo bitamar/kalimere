@@ -8,6 +8,13 @@
       "when": 1760085803200,
       "tag": "0000_purple_scourge",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1760086803200,
+      "tag": "0001_add_customer_id_to_visits",
+      "breakpoints": false
     }
   ]
 }
