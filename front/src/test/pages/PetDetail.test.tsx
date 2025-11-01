@@ -30,6 +30,7 @@ const mockPet: customersApi.Pet = {
   breed: 'Border Collie',
   isSterilized: true,
   isCastrated: false,
+  imageUrl: null,
 };
 
 const mockCustomer: customersApi.Customer = {
@@ -111,6 +112,7 @@ describe('PetDetail page', () => {
       ...mockPet,
       name: 'Bolt Updated',
       breed: 'Labrador',
+      imageUrl: null,
     };
     updatePetMock.mockResolvedValue(updatedPet);
     getPetMock.mockResolvedValueOnce(mockPet).mockResolvedValue(updatedPet);
