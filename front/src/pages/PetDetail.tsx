@@ -429,7 +429,13 @@ export function PetDetail() {
           <Text size="lg" fw={600}>
             תמונת חיית מחמד
           </Text>
-          <Image src={currentImage} alt={`תמונה של ${ensuredPet.name}`} radius="md" h={240} fit="cover" />
+          <Image
+            src={currentImage}
+            alt={`תמונה של ${ensuredPet.name}`}
+            radius="md"
+            h={240}
+            fit="cover"
+          />
           <Group gap="sm">
             <Button
               onClick={handleUploadClick}

@@ -228,7 +228,11 @@ export async function updatePetForCustomer(
   return serializePet(updated);
 }
 
-export async function updatePetImageForCustomer(customerId: string, petId: string, dataUrl: string) {
+export async function updatePetImageForCustomer(
+  customerId: string,
+  petId: string,
+  dataUrl: string
+) {
   const record = await findPetByIdForCustomer(customerId, petId);
   if (!record) throw notFound();
 
