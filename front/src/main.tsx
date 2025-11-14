@@ -12,6 +12,7 @@ import { queryClient } from './lib/queryClient';
 import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { lightModeCssVariablesResolver, mantineThemeOverride } from './theme';
+import './lib/dayjsLocale';
 
 const container = document.getElementById('root');
 
