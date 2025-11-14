@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react';
 import { DatePicker } from '@mantine/dates';
 import { Link, useLocation } from 'react-router-dom';
+import { formatHebrewMonthLabel, formatHebrewWeekdayLabel } from './lib/hebrewDateFormatting';
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -55,6 +56,8 @@ export default function Navbar() {
           allowDeselect
           weekendDays={[5, 6]}
           locale="he"
+          monthLabelFormat={formatHebrewMonthLabel}
+          weekdayFormat={formatHebrewWeekdayLabel}
           previousIcon={<IconChevronRight size={16} />}
           nextIcon={<IconChevronLeft size={16} />}
           styles={{ day: { marginInline: rem(5) } }}
