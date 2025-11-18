@@ -198,6 +198,80 @@ function createPgMemPool(
 ): pg.Pool {
   const mem = newDb({ autoCreateForeignKeyIndices: true });
 
+  function isIgnorableDuplicateError(error: unknown) {
+    if (!(error instanceof Error)) return false;
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('already exists') ||
+      message.includes('duplicate key') ||
+      message.includes('duplicate object')
+    );
+  }
+
+  function executeDoStatement(statement: string) {
+    const withoutWrapper = statement
+      .replace(/^DO\s*\$\$/i, '')
+      .replace(/\$\$;?$/i, '')
+      .trim();
+
+    const trimmedBody = withoutWrapper
+      .replace(/^BEGIN\s*/i, '')
+      .replace(/END\s*;?$/i, '')
+      .trim();
+
+    const [mainSectionRaw, exceptionSection] = trimmedBody.split(/EXCEPTION/i);
+    const mainSection = mainSectionRaw ?? '';
+
+    const executeStatements = (sqlBlock: string) => {
+      const statements = sqlBlock
+        .split(';')
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      for (const sql of statements) {
+        mem.public.none(sql);
+      }
+    };
+
+    if (exceptionSection) {
+      const guardedSql = mainSection.trim().replace(/;$/, '');
+      try {
+        executeStatements(guardedSql);
+      } catch (error) {
+        if (!isIgnorableDuplicateError(error)) {
+          throw error;
+        }
+      }
+      return;
+    }
+
+    const ifMatch = trimmedBody.match(
+      /IF\s+EXISTS\s*\(([^)]+)\)\s*(?:AND\s+EXISTS\s*\(([^)]+)\)\s*)?THEN\s+([\s\S]+?)\s*END\s*IF;?/i
+    );
+
+    if (ifMatch) {
+      const [, firstConditionRaw, secondConditionRaw, blockSqlRaw = ''] = ifMatch;
+      const firstCondition = firstConditionRaw?.trim();
+      const secondCondition = secondConditionRaw?.trim();
+      const blockSql = blockSqlRaw.trim();
+
+      const conditionSatisfied = (conditionSql: string | undefined) => {
+        const normalized = conditionSql?.trim();
+        if (!normalized) return true;
+        const result = mem.public.many(normalized);
+        return Array.isArray(result) ? result.length > 0 : Boolean(result);
+      };
+
+      if (conditionSatisfied(firstCondition) && conditionSatisfied(secondCondition)) {
+        executeStatements(blockSql);
+      }
+      return;
+    }
+
+    // Fallback: attempt to execute the body as-is.
+    executeStatements(trimmedBody);
+  }
+
   mem.public.registerFunction({
     name: 'gen_random_uuid',
     returns: DataType.uuid,
@@ -224,7 +298,11 @@ function createPgMemPool(
       .filter(Boolean);
 
     for (const statement of statements) {
-      mem.public.none(statement);
+      if (/^DO\s*\$\$/i.test(statement)) {
+        executeDoStatement(statement);
+      } else {
+        mem.public.none(statement);
+      }
     }
   }
 

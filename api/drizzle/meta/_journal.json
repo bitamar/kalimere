@@ -12,7 +12,14 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1760085804200,
+      "when": 1760172200100,
+      "tag": "0001_expand_visit_data_model",
+      "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1760172205200,
       "tag": "0010_pet_image_url",
       "breakpoints": false
     }

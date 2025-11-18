@@ -1,12 +1,14 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  ActionIcon,
   Anchor,
   Badge,
   Breadcrumbs,
   Button,
   Card,
   Container,
+  Divider,
   Group,
   Image,
   Menu,
@@ -14,7 +16,7 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { IconDots, IconPencil, IconX } from '@tabler/icons-react';
+import { IconDots, IconPencil, IconUser, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -266,7 +268,7 @@ export function PetDetail() {
     const items = [{ title: 'לקוחות', href: '/customers' }];
 
     if (customer) {
-      items.push({ title: customer.name, href: `/customers/${customer.id}` });
+      items.push({ title: `לקוח: ${customer.name}`, href: `/customers/${customer.id}` });
     }
 
     if (pet) {
@@ -346,6 +348,14 @@ export function PetDetail() {
   const currentImage = ensuredPet.imageUrl ?? defaultPetImage;
   const hasCustomImage = Boolean(ensuredPet.imageUrl);
 
+  const ownerDetails = customer
+    ? [
+        customer.email ? { label: 'דוא"ל', value: customer.email } : null,
+        customer.phone ? { label: 'טלפון', value: customer.phone } : null,
+        customer.address ? { label: 'כתובת', value: customer.address } : null,
+      ].filter((detail): detail is { label: string; value: string } => detail !== null)
+    : [];
+
   function openPetEditModal() {
     setPetFormInitialValues({
       name: ensuredPet.name,
@@ -370,24 +380,21 @@ export function PetDetail() {
         className="pet-title-group"
         style={{ position: 'relative' }}
       >
-        <Menu shadow="md" width={150} position="bottom-start">
+        <Menu shadow="md" width={170} position="bottom-start">
           <Menu.Target>
-            <Button
+            <ActionIcon
               variant="subtle"
-              size="xs"
+              size="sm"
               aria-label="פתח תפריט פעולות"
               data-testid="pet-actions-trigger"
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                padding: '4px',
-                width: '24px',
-                height: '24px',
               }}
             >
-              <IconDots size={14} />
-            </Button>
+              <IconDots size={16} />
+            </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown data-testid="pet-actions-dropdown">
             <Menu.Item
@@ -467,6 +474,45 @@ export function PetDetail() {
           </Text>
         </Stack>
       </Card>
+
+      {customer && (
+        <Card withBorder shadow="sm" radius="md" padding="lg" mb="xl">
+          <Stack gap="sm">
+            <Group gap="sm">
+              <IconUser size={18} />
+              <Text size="lg" fw={600}>
+                פרטי בעלים
+              </Text>
+            </Group>
+            <Text>
+              <Anchor
+                component="button"
+                onClick={() => navigate(`/customers/${customer.id}`)}
+                style={{ padding: 0, background: 'none' }}
+              >
+                {customer.name}
+              </Anchor>
+            </Text>
+            {ownerDetails.length > 0 && <Divider />}
+            {ownerDetails.length > 0 ? (
+              <Stack gap="xs">
+                {ownerDetails.map((detail) => (
+                  <Group key={detail.label} justify="space-between">
+                    <Text size="sm" c="dimmed">
+                      {detail.label}
+                    </Text>
+                    <Text size="sm">{detail.value}</Text>
+                  </Group>
+                ))}
+              </Stack>
+            ) : (
+              <Text size="sm" c="dimmed">
+                לא הוזנו פרטי קשר נוספים.
+              </Text>
+            )}
+          </Stack>
+        </Card>
+      )}
 
       <Card withBorder shadow="sm" radius="md" padding="lg" mb="xl">
         <Stack gap="md">
