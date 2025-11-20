@@ -32,6 +32,7 @@ const mockPet: customersApi.Pet = {
   breed: 'Border Collie',
   isSterilized: true,
   isCastrated: false,
+  imageUrl: null,
 };
 
 const mockCustomer: customersApi.Customer = {

@@ -41,6 +41,7 @@ const baseVisit: VisitWithDetails = {
   updatedAt: '2024-04-01T10:00:00.000Z',
   treatments: [],
   notes: [],
+  images: [],
 };
 
 const baseCustomer: Customer = {
@@ -62,6 +63,7 @@ const basePet: Pet = {
   breed: null,
   isSterilized: null,
   isCastrated: null,
+  imageUrl: null,
 };
 
 const treatmentCatalog: Treatment[] = [
