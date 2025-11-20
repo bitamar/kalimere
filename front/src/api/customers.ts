@@ -137,3 +137,20 @@ export async function deletePet(customerId: string, petId: string): Promise<void
     method: 'DELETE',
   });
 }
+
+export async function getPetImageUploadUrl(
+  customerId: string,
+  petId: string,
+  contentType: string
+): Promise<{ url: string; key: string }> {
+  const json = await fetchJson<unknown>(
+    `/customers/${customerId}/pets/${petId}/image/upload-url`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ contentType }),
+    }
+  );
+  // We can use a simple schema here or import the shared one if we export it to frontend
+  // For now, manual casting or simple validation is fine as we trust our backend
+  return json as { url: string; key: string };
+}

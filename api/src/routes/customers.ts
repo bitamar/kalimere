@@ -15,7 +15,7 @@ import {
   updateCustomerParamsSchema,
   updatePetBodySchema,
 } from '@kalimere/types/customers';
-import { okResponseSchema } from '@kalimere/types/common';
+import { okResponseSchema, uploadUrlResponseSchema } from '@kalimere/types/common';
 import { ensureCustomerOwnership, ensurePetOwnership } from '../middleware/ownership.js';
 import {
   createCustomerForUser,
@@ -24,11 +24,14 @@ import {
   deletePetForCustomer,
   getCustomerForUser,
   getPetForCustomer,
+  getPetImageUploadUrl,
   listCustomersForUser,
   listPetsForCustomer,
   updateCustomerForUser,
   updatePetForCustomer,
 } from '../services/customer-service.js';
+
+import { z } from 'zod';
 
 const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -202,6 +205,29 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     async (req) => {
       const customerId = req.params.customerId;
       return deletePetForCustomer(customerId, req.params.petId);
+    }
+  );
+
+  app.post(
+    '/customers/:customerId/pets/:petId/image/upload-url',
+    {
+      preHandler: [
+        app.authenticate,
+        ensureCustomerOwnership('customerId'),
+        ensurePetOwnership('petId'),
+      ],
+      schema: {
+        params: customerPetParamsSchema,
+        body: z.object({ contentType: z.string() }),
+        response: {
+          200: uploadUrlResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      const { customerId, petId } = req.params;
+      const { contentType } = req.body;
+      return getPetImageUploadUrl(customerId, petId, contentType);
     }
   );
 

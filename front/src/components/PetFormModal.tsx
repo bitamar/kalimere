@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Select, TextInput } from '@mantine/core';
 import { EntityFormModal } from './EntityFormModal';
 
+import { ImageUpload } from './ImageUpload';
+
 export type PetFormValues = {
   name: string;
   type: '' | 'dog' | 'cat';
   gender: '' | 'male' | 'female';
   breed: string;
+  imageUrl: string | null;
 };
 
 export type PetFormSubmitValues = {
@@ -14,6 +17,7 @@ export type PetFormSubmitValues = {
   type: 'dog' | 'cat';
   gender: 'male' | 'female';
   breed: string | null;
+  imageUrl: string | null;
 };
 
 export type PetFormModalInitialValues = Partial<Omit<PetFormValues, 'type' | 'gender'>> & {
@@ -26,6 +30,7 @@ const initialFormValues: PetFormValues = {
   type: '',
   gender: '',
   breed: '',
+  imageUrl: null,
 };
 
 const petTypeOptions = [
@@ -45,6 +50,8 @@ export type PetFormModalProps = {
   submitLoading?: boolean;
   initialValues?: PetFormModalInitialValues | null;
   onSubmit: (values: PetFormSubmitValues) => void | Promise<unknown>;
+  onUploadUrlRequest?: (file: File) => Promise<{ url: string; key: string }>;
+  onUploadComplete?: (key: string, file: File) => Promise<void>;
 };
 
 export function PetFormModal({
@@ -54,6 +61,8 @@ export function PetFormModal({
   submitLoading,
   initialValues,
   onSubmit,
+  onUploadUrlRequest,
+  onUploadComplete,
 }: PetFormModalProps) {
   const [values, setValues] = useState<PetFormValues>(initialFormValues);
 
@@ -68,6 +77,7 @@ export function PetFormModal({
       type: initialValues?.type ?? '',
       gender: initialValues?.gender ?? '',
       breed: initialValues?.breed ?? '',
+      imageUrl: initialValues?.imageUrl ?? null,
     });
   }, [
     opened,
@@ -75,6 +85,7 @@ export function PetFormModal({
     initialValues?.type,
     initialValues?.gender,
     initialValues?.breed,
+    initialValues?.imageUrl,
   ]);
 
   const submitDisabled = useMemo(() => {
@@ -93,6 +104,7 @@ export function PetFormModal({
       type: values.type,
       gender: values.gender,
       breed: trimmedBreed === '' ? null : trimmedBreed,
+      imageUrl: values.imageUrl,
     });
   };
 
@@ -106,6 +118,17 @@ export function PetFormModal({
       submitDisabled={submitDisabled}
       submitLoading={submitLoading ?? false}
     >
+      {mode === 'edit' && onUploadUrlRequest && onUploadComplete && (
+        <ImageUpload
+          onUploadUrlRequest={onUploadUrlRequest}
+          onUploadComplete={async (key, file) => {
+            await onUploadComplete(key, file);
+            setValues((prev) => ({ ...prev, imageUrl: key }));
+          }}
+          initialImage={values.imageUrl}
+          className="mb-4"
+        />
+      )}
       <TextInput
         label="שם"
         value={values.name}

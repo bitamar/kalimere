@@ -13,16 +13,26 @@ import {
   Stack,
   Text,
   Textarea,
+  Image,
+  SimpleGrid,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusCard } from '../components/StatusCard';
 import { PageTitle } from '../components/PageTitle';
+import { ImageUpload } from '../components/ImageUpload';
 import { queryKeys } from '../lib/queryKeys';
 import { extractErrorMessage } from '../lib/notifications';
 import { HttpError } from '../lib/http';
 import { useApiMutation } from '../lib/useApiMutation';
-import { getVisit, updateVisit, type VisitWithDetails, type UpdateVisitBody } from '../api/visits';
+import {
+  getVisit,
+  updateVisit,
+  getVisitImageUploadUrl,
+  addVisitImage,
+  type VisitWithDetails,
+  type UpdateVisitBody,
+} from '../api/visits';
 import { getCustomer, getPet } from '../api/customers';
 import type { Customer, Pet } from '../api/customers';
 import { listTreatments } from '../api/treatments';
@@ -357,6 +367,44 @@ export function VisitDetail() {
               <Text mt="xs">{visit.description}</Text>
             </Card>
           ) : null}
+        </Stack>
+      </Card>
+
+      <Card withBorder shadow="sm" radius="md" padding="lg" mb="xl">
+        <Stack gap="md">
+          <Text size="lg" fw={600}>
+            תמונות
+          </Text>
+
+          {visit.images && visit.images.length > 0 ? (
+            <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }}>
+              {visit.images.map((img) => (
+                <Image
+                  key={img.id}
+                  src={img.url}
+                  radius="md"
+                  h={120}
+                  fit="cover"
+                  alt={img.originalName || 'Visit image'}
+                />
+              ))}
+            </SimpleGrid>
+          ) : (
+            <Text size="sm" c="dimmed">
+              עדיין לא הועלו תמונות לביקור זה.
+            </Text>
+          )}
+
+          <ImageUpload
+            label="הוסף תמונה"
+            onUploadUrlRequest={(file) =>
+              getVisitImageUploadUrl(visit.id, file.type, file.name)
+            }
+            onUploadComplete={async (key, file) => {
+              await addVisitImage(visit.id, key, file.name, file.type);
+              await queryClient.invalidateQueries({ queryKey: visitQueryKey });
+            }}
+          />
         </Stack>
       </Card>
 

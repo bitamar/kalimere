@@ -166,4 +166,57 @@ describe('routes/visits', () => {
     });
     expect(updateResponse.statusCode).toBe(404);
   });
+
+  it('generates presigned upload URLs and creates visit image records', async () => {
+    const { user, session } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Buddy', type: 'dog' });
+
+    const createResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: '/visits',
+      payload: {
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: '2025-10-15T10:00:00.000Z',
+      },
+    });
+
+    const visitId = (createResponse.json() as VisitResponse).visit.id;
+
+    // Test upload URL generation
+    const uploadUrlResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visitId}/images/upload-url`,
+      payload: { contentType: 'image/png', originalName: 'test.png' },
+    });
+
+    expect(uploadUrlResponse.statusCode).toBe(200);
+    const uploadBody = uploadUrlResponse.json() as { url: string; key: string };
+    expect(uploadBody.url).toMatch(/^https?:\/\//);
+    expect(uploadBody.key).toMatch(/^visits\//);
+
+    // Test image record creation
+    const imageResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visitId}/images`,
+      payload: { key: uploadBody.key, originalName: 'test.png', contentType: 'image/png' },
+    });
+
+    expect(imageResponse.statusCode).toBe(200);
+
+    // Verify image appears in visit details
+    const detailsResponse = await injectAuthed(app, session.id, {
+      method: 'GET',
+      url: `/visits/${visitId}`,
+    });
+
+    const detailsResult = getJson<VisitWithDetailsResponse>(detailsResponse);
+    expect(detailsResult.body.visit.images).toHaveLength(1);
+    expect(detailsResult.body.visit.images[0]).toMatchObject({
+      originalName: 'test.png',
+      contentType: 'image/png',
+    });
+    expect(detailsResult.body.visit.images[0].url).toMatch(/^https?:\/\//);
+  });
 });

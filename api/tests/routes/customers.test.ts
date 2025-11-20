@@ -242,4 +242,21 @@ describe('routes/customers', () => {
       petsCount: 1,
     });
   });
+
+  it('generates a presigned upload URL for pet images', async () => {
+    const { user, sessionId } = await createAuthedUser();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Rex', type: 'dog', gender: 'male' });
+
+    const response = await injectAuthed(app, sessionId, {
+      method: 'POST',
+      url: `/customers/${customer.id}/pets/${pet.id}/image/upload-url`,
+      payload: { contentType: 'image/jpeg' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { url: string; key: string };
+    expect(body.url).toMatch(/^https?:\/\//);
+    expect(body.key).toMatch(/^pets\//);
+  });
 });

@@ -1,6 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { customers, pets, visitNotes, visitTreatments, visits } from '../db/schema.js';
+import { customers, pets, visitImages, visitNotes, visitTreatments, visits } from '../db/schema.js';
 
 export type VisitRecord = (typeof visits)['$inferSelect'];
 export type VisitInsert = (typeof visits)['$inferInsert'];
@@ -8,6 +8,8 @@ export type VisitTreatmentRecord = (typeof visitTreatments)['$inferSelect'];
 export type VisitTreatmentInsert = (typeof visitTreatments)['$inferInsert'];
 export type VisitNoteRecord = (typeof visitNotes)['$inferSelect'];
 export type VisitNoteInsert = (typeof visitNotes)['$inferInsert'];
+export type VisitImageRecord = (typeof visitImages)['$inferSelect'];
+export type VisitImageInsert = (typeof visitImages)['$inferInsert'];
 
 export async function createVisit(values: VisitInsert) {
   const rows = await db.insert(visits).values(values).returning();
@@ -53,7 +55,7 @@ export async function findVisitWithDetailsById(visitId: string) {
   const base = await findVisitWithCustomerById(visitId);
   if (!base) return null;
 
-  const [treatments, notes] = await Promise.all([
+  const [treatments, notes, images] = await Promise.all([
     db
       .select()
       .from(visitTreatments)
@@ -64,12 +66,18 @@ export async function findVisitWithDetailsById(visitId: string) {
       .from(visitNotes)
       .where(eq(visitNotes.visitId, visitId))
       .orderBy(asc(visitNotes.createdAt)),
+    db
+      .select()
+      .from(visitImages)
+      .where(and(eq(visitImages.visitId, visitId), eq(visitImages.isDeleted, false)))
+      .orderBy(asc(visitImages.createdAt)),
   ]);
 
   return {
     ...base,
     visitTreatments: treatments,
     notes,
+    images,
   };
 }
 
@@ -81,4 +89,9 @@ export async function createVisitTreatments(values: VisitTreatmentInsert[]) {
 export async function createVisitNotes(values: VisitNoteInsert[]) {
   if (values.length === 0) return [] as VisitNoteRecord[];
   return db.insert(visitNotes).values(values).returning();
+}
+
+export async function createVisitImages(values: VisitImageInsert[]) {
+  if (values.length === 0) return [] as VisitImageRecord[];
+  return db.insert(visitImages).values(values).returning();
 }

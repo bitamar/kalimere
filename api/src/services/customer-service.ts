@@ -28,6 +28,8 @@ import {
   type UpdatePetBody,
 } from '@kalimere/types/customers';
 
+import { s3Service } from './s3.js';
+
 type CustomerDto = z.infer<typeof customerSchema>;
 type PetDto = z.infer<typeof petSchema>;
 
@@ -56,7 +58,12 @@ function normalizeDate(value: Date | string | null | undefined): string | null {
   return value;
 }
 
-function serializePet(record: PetRecord): PetDto {
+async function serializePet(record: PetRecord): Promise<PetDto> {
+  let imageUrl: string | null = null;
+  if (record.imageUrl) {
+    imageUrl = await s3Service.getPresignedDownloadUrl(record.imageUrl);
+  }
+
   return {
     id: record.id,
     customerId: record.customerId,
@@ -67,6 +74,7 @@ function serializePet(record: PetRecord): PetDto {
     breed: cleanNullableString(record.breed),
     isSterilized: record.isSterilized ?? null,
     isCastrated: record.isCastrated ?? null,
+    imageUrl,
   };
 }
 
@@ -120,7 +128,7 @@ export async function deleteCustomerForUser(userId: string, customerId: string) 
 
 export async function listPetsForCustomer(customerId: string) {
   const records = await findActivePetsByCustomerId(customerId);
-  return records.map((record) => serializePet(record));
+  return Promise.all(records.map((record) => serializePet(record)));
 }
 
 export async function getPetForCustomer(customerId: string, petId: string) {
@@ -166,6 +174,7 @@ export async function updatePetForCustomer(
   if (input.breed !== undefined) updates.breed = input.breed ?? null;
   if (input.isSterilized !== undefined) updates.isSterilized = input.isSterilized ?? null;
   if (input.isCastrated !== undefined) updates.isCastrated = input.isCastrated ?? null;
+  if (input.imageUrl !== undefined) updates.imageUrl = input.imageUrl ?? null;
   if (input.dateOfBirth !== undefined) {
     updates.dateOfBirth =
       typeof input.dateOfBirth === 'string' ? new Date(input.dateOfBirth) : null;
@@ -181,4 +190,13 @@ export async function deletePetForCustomer(customerId: string, petId: string) {
   if (!record) throw notFound();
   await softDeletePetById(petId);
   return { ok: true } as const;
+}
+
+export async function getPetImageUploadUrl(customerId: string, petId: string, contentType: string) {
+  const record = await findPetByIdForCustomer(customerId, petId);
+  if (!record) throw notFound();
+
+  const key = `pets/${petId}/profile-${Date.now()}`;
+  const url = await s3Service.getPresignedUploadUrl(key, contentType);
+  return { url, key };
 }

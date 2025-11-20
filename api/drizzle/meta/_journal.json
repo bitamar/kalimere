@@ -15,6 +15,13 @@
       "when": 1760086803200,
       "tag": "0001_add_customer_id_to_visits",
       "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763639637397,
+      "tag": "0002_tricky_mandrill",
+      "breakpoints": true
     }
   ]
 }

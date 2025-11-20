@@ -12,6 +12,7 @@ import {
   Modal,
   Stack,
   Text,
+  Image,
 } from '@mantine/core';
 import { IconCalendarPlus, IconDots, IconPencil, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +20,8 @@ import {
   getPet,
   deletePet,
   getCustomer,
+  getPetImageUploadUrl,
+  updatePet,
   type Customer,
   type Pet,
   type UpdatePetBody,
@@ -195,6 +198,17 @@ export function PetDetail() {
     };
     await scheduleVisitMutation.mutateAsync(payload);
   }
+
+  const handleUploadUrlRequest = async (file: File) => {
+    if (!customerId || !petId) throw new Error('Missing IDs');
+    return getPetImageUploadUrl(customerId, petId, file.type);
+  };
+
+  const handleUploadComplete = async (key: string) => {
+    if (!customerId || !petId) return;
+    await updatePet(customerId, petId, { imageUrl: key });
+    await queryClient.invalidateQueries({ queryKey: petQueryKey });
+  };
 
   const loading = petQuery.isPending || customerQuery.isPending;
   const petError = petQuery.error;
@@ -384,6 +398,16 @@ export function PetDetail() {
           </Menu.Dropdown>
         </Menu>
 
+        {ensuredPet.imageUrl && (
+          <Image
+            src={ensuredPet.imageUrl}
+            w={64}
+            h={64}
+            radius="xl"
+            fit="cover"
+            alt={ensuredPet.name}
+          />
+        )}
         <PageTitle order={2}>{ensuredPet.name}</PageTitle>
         <Badge variant="light" size="lg" color={ensuredPet.type === 'dog' ? 'teal' : 'grape'}>
           {typeLabel}
@@ -496,6 +520,8 @@ export function PetDetail() {
         submitLoading={petMutationInFlight}
         initialValues={petFormInitialValues}
         onSubmit={onSubmitPet}
+        onUploadUrlRequest={handleUploadUrlRequest}
+        onUploadComplete={handleUploadComplete}
       />
 
       <Modal

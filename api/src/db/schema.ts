@@ -99,6 +99,7 @@ export const pets = pgTable(
     gender: petGenderEnum('gender').notNull(),
     isSterilized: boolean('is_sterilized'),
     isCastrated: boolean('is_castrated'),
+    imageUrl: text('image_url'),
     isDeleted: boolean('is_deleted').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -222,6 +223,26 @@ export const visitNotes = pgTable(
   }
 );
 
+export const visitImages = pgTable(
+  'visit_images',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    visitId: uuid('visit_id')
+      .notNull()
+      .references(() => visits.id),
+    storageKey: text('storage_key').notNull(),
+    originalName: text('original_name'),
+    contentType: text('content_type'),
+    isDeleted: boolean('is_deleted').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      visitIdx: index('visit_image_visit_idx').on(table.visitId),
+    };
+  }
+);
+
 export const appointments = pgTable(
   'appointments',
   {
@@ -267,6 +288,7 @@ export const visitsRelations = relations(visits, ({ one, many }) => ({
     references: [customers.id],
   }),
   notes: many(visitNotes),
+  images: many(visitImages),
 }));
 
 export const visitTreatmentsRelations = relations(visitTreatments, ({ one }) => ({
@@ -294,6 +316,13 @@ export const appointmentsRelations = relations(appointments, ({ one }) => ({
 export const visitNotesRelations = relations(visitNotes, ({ one }) => ({
   visit: one(visits, {
     fields: [visitNotes.visitId],
+    references: [visits.id],
+  }),
+}));
+
+export const visitImagesRelations = relations(visitImages, ({ one }) => ({
+  visit: one(visits, {
+    fields: [visitImages.visitId],
     references: [visits.id],
   }),
 }));

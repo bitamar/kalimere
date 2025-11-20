@@ -10,6 +10,7 @@ import {
   type VisitRecord,
   type VisitTreatmentRecord,
   type VisitNoteRecord,
+  type VisitImageRecord,
 } from '../repositories/visit-repository.js';
 import { findCustomerByIdForUser } from '../repositories/customer-repository.js';
 import { findPetByIdForCustomer } from '../repositories/pet-repository.js';
@@ -22,7 +23,9 @@ import {
   type VisitWithDetails,
   type VisitTreatment,
   type VisitNote,
+  type VisitImage,
 } from '@kalimere/types/visits';
+import { s3Service } from './s3.js';
 
 function cleanNullableString(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null;
@@ -95,14 +98,26 @@ function serializeVisitNote(record: VisitNoteRecord): VisitNote {
   };
 }
 
-function serializeVisitWithDetails(
+async function serializeVisitImage(record: VisitImageRecord): Promise<VisitImage> {
+  return {
+    id: record.id,
+    visitId: record.visitId,
+    url: await s3Service.getPresignedDownloadUrl(record.storageKey),
+    originalName: record.originalName,
+    createdAt: toIsoString(record.createdAt),
+  };
+}
+
+async function serializeVisitWithDetails(
   record: NonNullable<Awaited<ReturnType<typeof findVisitWithDetailsById>>>
-): VisitWithDetails {
+): Promise<VisitWithDetails> {
   const base = serializeVisit(record);
+  const images = await Promise.all(record.images.map((img) => serializeVisitImage(img)));
   return {
     ...base,
     treatments: record.visitTreatments.map((item) => serializeVisitTreatment(item)),
     notes: record.notes.map((item) => serializeVisitNote(item)),
+    images,
   };
 }
 
@@ -268,4 +283,39 @@ export async function updateVisitForUser(userId: string, visitId: string, input:
   const record = await findVisitWithDetailsById(visitId);
   if (!record) throw notFound();
   return serializeVisitWithDetails(record);
+}
+
+export async function getVisitImageUploadUrl(
+  userId: string,
+  visitId: string,
+  contentType: string,
+  originalName?: string
+) {
+  await ensureVisitBelongsToUser(userId, visitId);
+  const uuid = crypto.randomUUID();
+  const key = `visits/${visitId}/${uuid}`;
+  const url = await s3Service.getPresignedUploadUrl(key, contentType);
+  return { url, key, uuid };
+}
+
+import { createVisitImages } from '../repositories/visit-repository.js';
+
+export async function addVisitImage(
+  userId: string,
+  visitId: string,
+  key: string,
+  originalName?: string,
+  contentType?: string
+) {
+  await ensureVisitBelongsToUser(userId, visitId);
+  const [image] = await createVisitImages([
+    {
+      visitId,
+      storageKey: key,
+      originalName,
+      contentType,
+    },
+  ]);
+  if (!image) throw new Error('Failed to create visit image');
+  return serializeVisitImage(image);
 }
