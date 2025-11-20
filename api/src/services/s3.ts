@@ -5,14 +5,7 @@ import {
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-
-// Lazy-load env to avoid import-time validation failures in tests
-let envModule: typeof import('../env.js') | null = null;
-try {
-  envModule = await import('../env.js');
-} catch {
-  // Env not available in test environment
-}
+import { env } from '../env.js';
 
 function slugifyLabel(label: string): string {
   return label
@@ -49,8 +42,8 @@ export class S3Service {
   private bucketName: string;
 
   constructor() {
-    const region = envModule?.env.AWS_REGION || 'us-east-1';
-    const bucketName = envModule?.env.S3_BUCKET_NAME || 'test-bucket';
+    const region = env.AWS_REGION;
+    const bucketName = env.S3_BUCKET_NAME;
 
     this.client = new S3Client({ region });
     this.bucketName = bucketName;
