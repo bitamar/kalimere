@@ -3,6 +3,7 @@ import { updatePet, type Pet, type UpdatePetBody } from '../api/customers';
 import { useApiMutation } from '../lib/useApiMutation';
 import { queryKeys } from '../lib/queryKeys';
 import { applyPetUpdates } from '../utils/entityUpdates';
+import { showSuccessNotification } from '../lib/notifications';
 
 export type UpdatePetVariables = {
   petId: string;
@@ -42,7 +43,7 @@ export function usePetUpdateMutation({
       }
       return updatePet(customerId, petId, payload);
     },
-    successToast: { message: 'חיית המחמד עודכנה בהצלחה' },
+    successToast: false,
     errorToast: { fallbackMessage: 'עדכון חיית המחמד נכשל' },
     onMutate: async ({ petId, payload }) => {
       if (!customerId) {
@@ -93,6 +94,14 @@ export function usePetUpdateMutation({
           petDetailQueryKey,
           (old) => data ?? (old ? applyPetUpdates(old, payload) : old)
         );
+      }
+
+      const hasNonImageUpdates = Object.entries(payload).some(
+        ([key, value]) => key !== 'imageUrl' && value !== undefined
+      );
+      const isImageUpdateOnly = payload.imageUrl !== undefined && !hasNonImageUpdates;
+      if (!isImageUpdateOnly) {
+        showSuccessNotification('חיית המחמד עודכנה בהצלחה');
       }
 
       onSuccess?.(data, variables, context);

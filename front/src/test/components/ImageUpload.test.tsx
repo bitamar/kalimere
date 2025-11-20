@@ -19,7 +19,9 @@ type UploadResult = { url: string; key: string };
 type UploadResolver = (value: UploadResult) => void;
 
 const getUploadButton = () =>
-  screen.getByRole('button', { name: /(העלה תמונה|מכין העלאה|מעלה תמונה|משלים)/ });
+  screen.getByRole('button', {
+    name: /(העלה תמונה|מכין העלאה|מעלה תמונה|משלים|מסיר תמונה)/,
+  });
 
 const expectInlineMessage = (pattern: RegExp) => {
   const inlineMatch = screen

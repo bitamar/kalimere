@@ -14,6 +14,7 @@ import {
   listCustomersForUser,
   listPetsForCustomer,
   updateCustomerForUser,
+  updatePetForCustomer,
 } from '../../src/services/customer-service.js';
 import { s3Service } from '../../src/services/s3.js';
 
@@ -120,5 +121,31 @@ describe('customer-service', () => {
     expect(petSegment.endsWith(pet.id)).toBe(true);
     expect(fileName?.startsWith('profile-')).toBe(true);
     expect(s3Service.getPresignedUploadUrl).toHaveBeenCalledWith(key, 'image/jpeg');
+  });
+
+  it('deletes existing pet images when clearing the imageUrl', async () => {
+    const user = await createUser();
+    const customer = await createCustomerForUser(user.id, { name: 'Image Owner', email: null });
+    const pet = await createPetForCustomer(customer.id, {
+      name: 'Luna',
+      type: 'cat',
+      gender: 'female',
+    });
+
+    const deleteSpy = vi.spyOn(s3Service, 'deleteObject').mockResolvedValue();
+    const downloadSpy = vi
+      .spyOn(s3Service, 'getPresignedDownloadUrl')
+      .mockResolvedValue('https://download.example.com/pet.jpg');
+
+    await updatePetForCustomer(customer.id, pet.id, { imageUrl: 'pet-image-key' });
+    expect(downloadSpy).toHaveBeenCalled();
+
+    const cleared = await updatePetForCustomer(customer.id, pet.id, { imageUrl: null });
+
+    expect(deleteSpy).toHaveBeenCalledWith('pet-image-key');
+    expect(cleared.imageUrl).toBeNull();
+
+    const persisted = await getPetForCustomer(customer.id, pet.id);
+    expect(persisted.imageUrl).toBeNull();
   });
 });

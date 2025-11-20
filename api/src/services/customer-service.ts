@@ -169,13 +169,23 @@ export async function updatePetForCustomer(
   if (!record) throw notFound();
 
   const updates: Partial<PetInsert> = { updatedAt: new Date() };
+  let imageToDelete: string | null = null;
   if (input.name !== undefined) updates.name = input.name;
   if (input.type !== undefined) updates.type = input.type;
   if (input.gender !== undefined) updates.gender = input.gender;
   if (input.breed !== undefined) updates.breed = input.breed ?? null;
   if (input.isSterilized !== undefined) updates.isSterilized = input.isSterilized ?? null;
   if (input.isCastrated !== undefined) updates.isCastrated = input.isCastrated ?? null;
-  if (input.imageUrl !== undefined) updates.imageUrl = input.imageUrl ?? null;
+  if (input.imageUrl !== undefined) {
+    if (input.imageUrl === null) {
+      imageToDelete = record.imageUrl ?? null;
+      updates.imageUrl = null;
+    } else {
+      imageToDelete =
+        record.imageUrl && record.imageUrl !== input.imageUrl ? record.imageUrl : null;
+      updates.imageUrl = input.imageUrl;
+    }
+  }
   if (input.dateOfBirth !== undefined) {
     updates.dateOfBirth =
       typeof input.dateOfBirth === 'string' ? new Date(input.dateOfBirth) : null;
@@ -183,6 +193,11 @@ export async function updatePetForCustomer(
 
   const updated = await updatePetById(petId, updates);
   if (!updated) throw new Error('Failed to update pet');
+
+  if (imageToDelete) {
+    await s3Service.deleteObject(imageToDelete);
+  }
+
   return serializePet(updated);
 }
 

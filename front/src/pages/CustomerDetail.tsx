@@ -22,6 +22,7 @@ import {
   deletePet,
   getCustomer,
   getCustomerPets,
+  getPetImageUploadUrl,
   updateCustomer,
   type Customer,
   type Pet,
@@ -230,10 +231,28 @@ export function CustomerDetail() {
 
   const updatePetMutation = usePetUpdateMutation({
     customerId,
-    onSuccess: () => {
-      closePetForm();
-    },
   });
+
+  const handlePetImageUploadUrlRequest = async (file: File) => {
+    if (!customerId || !petFormState.editingPetId) throw new Error('Missing IDs');
+    return getPetImageUploadUrl(customerId, petFormState.editingPetId, file.type);
+  };
+
+  const handlePetImageUploadComplete = async (key: string) => {
+    if (!customerId || !petFormState.editingPetId) return;
+    await updatePetMutation.mutateAsync({
+      petId: petFormState.editingPetId,
+      payload: { imageUrl: key },
+    });
+  };
+
+  const handlePetImageRemove = async () => {
+    if (!customerId || !petFormState.editingPetId) return;
+    await updatePetMutation.mutateAsync({
+      petId: petFormState.editingPetId,
+      payload: { imageUrl: null },
+    });
+  };
 
   const deleteCustomerMutation = useApiMutation({
     mutationFn: () => deleteCustomer(customerId),
@@ -433,6 +452,7 @@ export function CustomerDetail() {
         type: pet.type,
         gender: pet.gender,
         breed: pet.breed ?? '',
+        imageUrl: pet.imageUrl ?? null,
       },
     });
   }
@@ -482,16 +502,21 @@ export function CustomerDetail() {
         gender: values.gender,
         breed: values.breed,
       };
+      if (values.imageUrl !== undefined) {
+        updatePayload.imageUrl = values.imageUrl;
+      }
       await updatePetMutation.mutateAsync({
         petId: petFormState.editingPetId,
         payload: updatePayload,
       });
+      closePetForm();
     } else {
       await addPetMutation.mutateAsync({
         name: values.name,
         type: values.type,
         gender: values.gender,
         breed: values.breed,
+        imageUrl: values.imageUrl,
       });
     }
   }
@@ -670,6 +695,9 @@ export function CustomerDetail() {
         submitLoading={petMutationInFlight}
         initialValues={petFormState.initialValues}
         onSubmit={onSubmitPet}
+        onUploadUrlRequest={handlePetImageUploadUrlRequest}
+        onUploadComplete={handlePetImageUploadComplete}
+        onRemoveImage={handlePetImageRemove}
       />
 
       <Modal opened={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="מחיקת לקוח">

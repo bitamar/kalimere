@@ -17,7 +17,7 @@ export type PetFormSubmitValues = {
   type: 'dog' | 'cat';
   gender: 'male' | 'female';
   breed: string | null;
-  imageUrl: string | null;
+  imageUrl?: string | null;
 };
 
 export type PetFormModalInitialValues = Partial<Omit<PetFormValues, 'type' | 'gender'>> & {
@@ -52,6 +52,7 @@ export type PetFormModalProps = {
   onSubmit: (values: PetFormSubmitValues) => void | Promise<unknown>;
   onUploadUrlRequest?: (file: File) => Promise<{ url: string; key: string }>;
   onUploadComplete?: (key: string, file: File) => Promise<void>;
+  onRemoveImage?: () => Promise<void>;
 };
 
 export function PetFormModal({
@@ -63,12 +64,15 @@ export function PetFormModal({
   onSubmit,
   onUploadUrlRequest,
   onUploadComplete,
+  onRemoveImage,
 }: PetFormModalProps) {
   const [values, setValues] = useState<PetFormValues>(initialFormValues);
+  const [imageUpdateValue, setImageUpdateValue] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!opened) {
       setValues(initialFormValues);
+      setImageUpdateValue(undefined);
       return;
     }
 
@@ -79,6 +83,7 @@ export function PetFormModal({
       breed: initialValues?.breed ?? '',
       imageUrl: initialValues?.imageUrl ?? null,
     });
+    setImageUpdateValue(undefined);
   }, [
     opened,
     initialValues?.name,
@@ -99,13 +104,18 @@ export function PetFormModal({
       return;
     }
 
-    onSubmit({
+    const payload: PetFormSubmitValues = {
       name: trimmedName,
       type: values.type,
       gender: values.gender,
       breed: trimmedBreed === '' ? null : trimmedBreed,
-      imageUrl: values.imageUrl,
-    });
+    };
+
+    if (imageUpdateValue !== undefined) {
+      payload.imageUrl = imageUpdateValue;
+    }
+
+    onSubmit(payload);
   };
 
   return (
@@ -123,10 +133,21 @@ export function PetFormModal({
           onUploadUrlRequest={onUploadUrlRequest}
           onUploadComplete={async (key, file) => {
             await onUploadComplete(key, file);
-            setValues((prev) => ({ ...prev, imageUrl: key }));
+            setImageUpdateValue(key);
           }}
+          onPreviewChange={(previewUrl) => setValues((prev) => ({ ...prev, imageUrl: previewUrl }))}
           initialImage={values.imageUrl}
           className="mb-4"
+          disabled={Boolean(submitLoading)}
+          {...(onRemoveImage
+            ? {
+                onRemoveImage: async () => {
+                  await onRemoveImage();
+                  setImageUpdateValue(null);
+                  setValues((prev) => ({ ...prev, imageUrl: null }));
+                },
+              }
+            : {})}
         />
       )}
       <TextInput

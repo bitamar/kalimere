@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Button,
   FileButton,
@@ -19,6 +19,9 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 interface ImageUploadProps {
   onUploadUrlRequest: (file: File) => Promise<{ url: string; key: string }>;
   onUploadComplete: (key: string, file: File) => Promise<void>;
+  onRemoveImage?: () => Promise<void>;
+  onPreviewChange?: (value: string | null) => void;
+  disabled?: boolean;
   accept?: string;
   label?: string;
   className?: string;
@@ -29,11 +32,14 @@ interface ImageUploadProps {
   showErrorInline?: boolean;
 }
 
-type UploadStage = 'idle' | 'requesting-url' | 'uploading-to-s3' | 'completing';
+type UploadStage = 'idle' | 'requesting-url' | 'uploading-to-s3' | 'completing' | 'removing';
 
 export function ImageUpload({
   onUploadUrlRequest,
   onUploadComplete,
+  onRemoveImage,
+  onPreviewChange,
+  disabled = false,
   accept = 'image/png,image/jpeg,image/webp',
   label = 'העלה תמונה',
   className,
@@ -47,8 +53,41 @@ export function ImageUpload({
   const [preview, setPreview] = useState<string | null>(initialImage ?? null);
   const [error, setError] = useState<string | null>(null);
   const stageRef = useRef<UploadStage>('idle');
+  const generatedPreviewRef = useRef<string | null>(null);
 
   const isUploading = uploadStage !== 'idle';
+  const setStage = (stage: UploadStage) => {
+    stageRef.current = stage;
+    setUploadStage(stage);
+  };
+
+  const updatePreview = (value: string | null, options: { generated?: boolean } = {}) => {
+    if (generatedPreviewRef.current && generatedPreviewRef.current !== value) {
+      URL.revokeObjectURL(generatedPreviewRef.current);
+      generatedPreviewRef.current = null;
+    }
+
+    if (options.generated && value) {
+      generatedPreviewRef.current = value;
+    }
+
+    setPreview(value);
+    onPreviewChange?.(value);
+  };
+
+  useEffect(() => {
+    if (uploadStage === 'idle') {
+      updatePreview(initialImage ?? null);
+    }
+  }, [initialImage, uploadStage]);
+
+  useEffect(() => {
+    return () => {
+      if (generatedPreviewRef.current) {
+        URL.revokeObjectURL(generatedPreviewRef.current);
+      }
+    };
+  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} bytes`;
@@ -139,20 +178,15 @@ export function ImageUpload({
 
     // Create preview
     const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
+    updatePreview(objectUrl, { generated: true });
 
-    const updateStage = (stage: UploadStage) => {
-      stageRef.current = stage;
-      setUploadStage(stage);
-    };
-
-    updateStage('requesting-url');
+    setStage('requesting-url');
     try {
       // 1. Get upload URL
       const { url, key } = await onUploadUrlRequest(file);
 
       // 2. Upload to S3
-      updateStage('uploading-to-s3');
+      setStage('uploading-to-s3');
       const response = await fetch(url, {
         method: 'PUT',
         body: file,
@@ -166,7 +200,7 @@ export function ImageUpload({
       }
 
       // 3. Notify completion
-      updateStage('completing');
+      setStage('completing');
       await onUploadComplete(key, file);
 
       notifications.show({
@@ -198,18 +232,43 @@ export function ImageUpload({
       });
 
       // Revert preview to initial image
-      URL.revokeObjectURL(objectUrl);
-      setPreview(initialImage ?? null);
+      updatePreview(initialImage ?? null);
     } finally {
-      updateStage('idle');
+      setStage('idle');
     }
   };
 
-  const clearPreview = () => {
-    setPreview(null);
+  const clearPreview = async () => {
     setError(null);
-    // Note: We don't delete from server here, just clear UI.
-    // If we wanted to support delete, we'd need an onDelete prop.
+
+    if (!onRemoveImage) {
+      updatePreview(null);
+      return;
+    }
+
+    const previousPreview = preview;
+    setStage('removing');
+    try {
+      await onRemoveImage();
+      updatePreview(null);
+      notifications.show({
+        title: 'הצלחה',
+        message: 'תמונת הפרופיל הוסרה',
+        color: 'green',
+      });
+    } catch (error) {
+      console.error('Remove image error:', error);
+      const errorMessage = 'מחיקת התמונה נכשלה';
+      setError(errorMessage);
+      notifications.show({
+        title: 'שגיאה',
+        message: errorMessage,
+        color: 'red',
+      });
+      updatePreview(previousPreview ?? initialImage ?? null);
+    } finally {
+      setStage('idle');
+    }
   };
 
   const getLoadingText = (): string => {
@@ -220,6 +279,8 @@ export function ImageUpload({
         return 'מעלה תמונה...';
       case 'completing':
         return 'משלים...';
+      case 'removing':
+        return 'מסיר תמונה...';
       default:
         return label;
     }
@@ -232,13 +293,14 @@ export function ImageUpload({
           {preview ? (
             <Box pos="relative" w={80} h={80}>
               <Image src={preview} alt="Preview" w={80} h={80} radius="md" fit="cover" />
-              {!isUploading && (
+              {!isUploading && !disabled && (
                 <ActionIcon
                   onClick={clearPreview}
                   variant="filled"
                   color="dark"
                   size="xs"
                   radius="xl"
+                  aria-label="הסר תמונה"
                   style={{ position: 'absolute', top: -5, right: -5 }}
                 >
                   <IconX size={12} />
@@ -265,14 +327,14 @@ export function ImageUpload({
             <FileButton
               onChange={handleFileChange}
               accept={accept}
-              disabled={isUploading}
-              inputProps={{ disabled: isUploading }}
+              disabled={disabled || isUploading}
+              inputProps={{ disabled: disabled || isUploading }}
             >
               {(props) => (
                 <Button
                   {...props}
                   variant="default"
-                  disabled={isUploading}
+                  disabled={disabled || isUploading}
                   leftSection={isUploading ? <Loader size="xs" /> : <IconUpload size={16} />}
                 >
                   {isUploading ? getLoadingText() : label}

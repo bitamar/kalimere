@@ -159,6 +159,39 @@ describe('CustomerDetail page', () => {
     });
   });
 
+  it('shows and removes an existing pet image while editing', async () => {
+    const petWithImage = {
+      ...enrichPet(basePets[0]!),
+      imageUrl: 'https://images.example.com/pet.jpg',
+    };
+    getCustomerPetsMock.mockResolvedValue([petWithImage, enrichPet(basePets[1]!)]);
+    updatePetMock.mockResolvedValue({ ...petWithImage, imageUrl: null });
+
+    renderCustomerDetail();
+
+    await waitFor(() => expect(getCustomerPetsMock).toHaveBeenCalled());
+
+    const user = userEvent.setup();
+    const boltCard = (await screen.findByText('Bolt')).closest('.pet-card') as HTMLElement | null;
+    if (!boltCard) throw new Error('Pet card not found');
+
+    await user.click(within(boltCard).getByRole('button', { name: 'ערוך' }) as HTMLButtonElement);
+
+    const dialog = (await screen.findByRole('dialog', { name: 'עריכת חיית מחמד' })) as HTMLElement;
+    const preview = await within(dialog).findByRole('img', { name: 'Preview' });
+    expect(preview).toHaveAttribute('src', petWithImage.imageUrl);
+
+    const removeButton = within(dialog).getByRole('button', { name: 'הסר תמונת פרופיל' });
+    await user.click(removeButton);
+
+    await waitFor(() =>
+      expect(updatePetMock).toHaveBeenCalledWith('cust-1', 'pet-1', { imageUrl: null })
+    );
+    await waitFor(() =>
+      expect(within(dialog).queryByRole('img', { name: 'Preview' })).not.toBeInTheDocument()
+    );
+  });
+
   afterEach(() => {
     restoreConsoleError?.();
     restoreConsoleError = null;

@@ -157,6 +157,41 @@ describe('PetDetail page', () => {
     );
   });
 
+  it('shows the current profile image in edit mode and allows removing it', async () => {
+    const user = userEvent.setup();
+    const petWithImage: customersApi.Pet = {
+      ...mockPet,
+      imageUrl: 'https://images.example.com/pet.jpg',
+    };
+    getPetMock.mockResolvedValue(petWithImage);
+    updatePetMock.mockResolvedValue({ ...petWithImage, imageUrl: null });
+
+    renderPetDetail();
+
+    await waitFor(() => expect(getPetMock).toHaveBeenCalled());
+
+    const menuButton = await screen.findByTestId('pet-actions-trigger');
+    await user.click(menuButton);
+
+    const actionsDropdown = await screen.findByTestId('pet-actions-dropdown');
+    await user.click(within(actionsDropdown).getByText('ערוך חיית מחמד'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'עריכת חיית מחמד' });
+    const preview = await within(dialog).findByRole('img', { name: 'Preview' });
+    expect(preview).toHaveAttribute('src', petWithImage.imageUrl);
+
+    const removeButton = within(dialog).getByRole('button', { name: 'הסר תמונת פרופיל' });
+    await user.click(removeButton);
+
+    await waitFor(() =>
+      expect(updatePetMock).toHaveBeenCalledWith('cust-1', 'pet-1', { imageUrl: null })
+    );
+
+    await waitFor(() =>
+      expect(within(dialog).queryByRole('img', { name: 'Preview' })).not.toBeInTheDocument()
+    );
+  });
+
   it('allows deleting the pet and returns to customer page', async () => {
     const user = userEvent.setup();
     renderPetDetail();

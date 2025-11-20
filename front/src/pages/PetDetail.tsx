@@ -21,7 +21,6 @@ import {
   deletePet,
   getCustomer,
   getPetImageUploadUrl,
-  updatePet,
   type Customer,
   type Pet,
   type UpdatePetBody,
@@ -158,9 +157,6 @@ export function PetDetail() {
   const updatePetMutation = usePetUpdateMutation({
     customerId,
     petDetailQueryKey: petQueryKey,
-    onSuccess: () => {
-      closePetForm();
-    },
   });
 
   const scheduleVisitMutation = useApiMutation({
@@ -184,7 +180,11 @@ export function PetDetail() {
       gender: values.gender,
       breed: values.breed,
     };
+    if (values.imageUrl !== undefined) {
+      payload.imageUrl = values.imageUrl;
+    }
     await updatePetMutation.mutateAsync({ petId, payload });
+    closePetForm();
   }
 
   async function onScheduleVisit(values: VisitFormSubmitValues) {
@@ -206,8 +206,12 @@ export function PetDetail() {
 
   const handleUploadComplete = async (key: string) => {
     if (!customerId || !petId) return;
-    await updatePet(customerId, petId, { imageUrl: key });
-    await queryClient.invalidateQueries({ queryKey: petQueryKey });
+    await updatePetMutation.mutateAsync({ petId, payload: { imageUrl: key } });
+  };
+
+  const handleRemoveImage = async () => {
+    if (!customerId || !petId) return;
+    await updatePetMutation.mutateAsync({ petId, payload: { imageUrl: null } });
   };
 
   const loading = petQuery.isPending || customerQuery.isPending;
@@ -334,6 +338,7 @@ export function PetDetail() {
       type: ensuredPet.type,
       gender: ensuredPet.gender,
       breed: ensuredPet.breed ?? '',
+      imageUrl: ensuredPet.imageUrl ?? null,
     });
     setPetFormOpen(true);
   }
@@ -522,6 +527,7 @@ export function PetDetail() {
         onSubmit={onSubmitPet}
         onUploadUrlRequest={handleUploadUrlRequest}
         onUploadComplete={handleUploadComplete}
+        onRemoveImage={handleRemoveImage}
       />
 
       <Modal
