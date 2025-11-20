@@ -147,6 +147,7 @@ describe('VisitDetail page', () => {
   const getCustomerMock = vi.mocked(customersApi.getCustomer);
   const getPetMock = vi.mocked(customersApi.getPet);
   const listTreatmentsMock = vi.mocked(treatmentsApi.listTreatments);
+  const deleteVisitImageMock = vi.mocked(visitsApi.deleteVisitImage);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -156,6 +157,7 @@ describe('VisitDetail page', () => {
     getCustomerMock.mockResolvedValue(baseCustomer);
     getPetMock.mockResolvedValue(basePet);
     listTreatmentsMock.mockResolvedValue(treatmentCatalog);
+    deleteVisitImageMock.mockResolvedValue(undefined);
   });
 
   it('renders visit details and allows navigation to related records', async () => {
@@ -306,5 +308,33 @@ describe('VisitDetail page', () => {
     const [firstTreatmentCard] = treatmentCards;
     expect(firstTreatmentCard).toBeTruthy();
     expect(await screen.findByText(/מחיר:\s*₪\s*123\.00/)).toBeInTheDocument();
+  });
+
+  it('allows deleting a visit image', async () => {
+    const visitWithImage: VisitWithDetails = {
+      ...baseVisit,
+      images: [
+        {
+          id: 'img-1',
+          visitId: baseVisit.id,
+          url: 'https://example.com/image.jpg',
+          originalName: 'test-image.jpg',
+          contentType: 'image/jpeg',
+          createdAt: '2024-04-10T09:30:00.000Z',
+        },
+      ],
+    };
+    getVisitMock.mockResolvedValue(visitWithImage);
+
+    await renderVisitDetailPage({ visit: visitWithImage });
+
+    const image = await screen.findByAltText('test-image.jpg');
+    await userEvent.hover(image);
+
+    const deleteButton = await screen.findByLabelText('הסר תמונה');
+    await userEvent.click(deleteButton);
+
+    await waitFor(() => expect(deleteVisitImageMock).toHaveBeenCalled());
+    expect(deleteVisitImageMock).toHaveBeenCalledWith(baseVisit.id, 'img-1');
   });
 });

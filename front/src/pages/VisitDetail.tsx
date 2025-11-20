@@ -13,7 +13,6 @@ import {
   Stack,
   Text,
   Textarea,
-  Image,
   SimpleGrid,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -21,6 +20,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusCard } from '../components/StatusCard';
 import { PageTitle } from '../components/PageTitle';
 import { ImageUpload } from '../components/ImageUpload';
+import { RemovableImage } from '../components/RemovableImage';
 import { queryKeys } from '../lib/queryKeys';
 import { extractErrorMessage } from '../lib/notifications';
 import { HttpError } from '../lib/http';
@@ -30,6 +30,7 @@ import {
   updateVisit,
   getVisitImageUploadUrl,
   addVisitImage,
+  deleteVisitImage,
   type VisitWithDetails,
   type UpdateVisitBody,
 } from '../api/visits';
@@ -38,6 +39,7 @@ import type { Customer, Pet } from '../api/customers';
 import { listTreatments } from '../api/treatments';
 import type { Treatment } from '../api/treatments';
 import { formatDateAsLocalISO, parseDateValue } from '../lib/date';
+import { useDeleteImage } from '../hooks/useDeleteImage';
 
 const visitStatusLabels: Record<VisitWithDetails['status'], string> = {
   scheduled: 'מתוכנן',
@@ -219,6 +221,17 @@ export function VisitDetail() {
     },
   });
 
+  const { handleDelete: handleDeleteImage, deletingId: deletingImageId } = useDeleteImage<string>({
+    onDelete: async (imageId) => {
+      if (!visitId) return;
+      await deleteVisitImage(visitId, imageId);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: visitQueryKey });
+    },
+    successMessage: 'התמונה הוסרה בהצלחה',
+  });
+
   if (!visitId || isVisitNotFound) {
     return (
       <Container size="lg" pt={{ base: 'xl', sm: 'xl' }} pb="xl">
@@ -379,13 +392,15 @@ export function VisitDetail() {
           {visit.images && visit.images.length > 0 ? (
             <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }}>
               {visit.images.map((img) => (
-                <Image
+                <RemovableImage
                   key={img.id}
                   src={img.url}
                   radius="md"
                   h={120}
                   fit="cover"
                   alt={img.originalName || 'Visit image'}
+                  onRemove={() => handleDeleteImage(img.id)}
+                  isRemoving={deletingImageId === img.id}
                 />
               ))}
             </SimpleGrid>

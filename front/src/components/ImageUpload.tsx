@@ -1,18 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Button,
-  FileButton,
-  Group,
-  Stack,
-  Text,
-  Loader,
-  Image,
-  ActionIcon,
-  Box,
-  Alert,
-} from '@mantine/core';
-import { IconUpload, IconX, IconAlertCircle } from '@tabler/icons-react';
+import { Button, FileButton, Group, Stack, Text, Loader, Box, Alert } from '@mantine/core';
+import { IconUpload, IconAlertCircle } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { RemovableImage } from './RemovableImage';
+import { useDeleteImage } from '../hooks/useDeleteImage';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -30,6 +21,7 @@ interface ImageUploadProps {
   minDimensions?: { width: number; height: number };
   maxDimensions?: { width: number; height: number };
   showErrorInline?: boolean;
+  hideUploadWhenHasValue?: boolean;
 }
 
 type UploadStage = 'idle' | 'requesting-url' | 'uploading-to-s3' | 'completing' | 'removing';
@@ -48,6 +40,7 @@ export function ImageUpload({
   minDimensions,
   maxDimensions,
   showErrorInline = true,
+  hideUploadWhenHasValue = false,
 }: ImageUploadProps) {
   const [uploadStage, setUploadStage] = useState<UploadStage>('idle');
   const [preview, setPreview] = useState<string | null>(initialImage ?? null);
@@ -238,37 +231,27 @@ export function ImageUpload({
     }
   };
 
-  const clearPreview = async () => {
-    setError(null);
-
-    if (!onRemoveImage) {
-      updatePreview(null);
-      return;
-    }
-
-    const previousPreview = preview;
-    setStage('removing');
-    try {
+  const { handleDelete: handleRemove, isDeleting: isRemoving } = useDeleteImage({
+    onDelete: async () => {
+      if (!onRemoveImage) {
+        updatePreview(null);
+        return;
+      }
       await onRemoveImage();
+    },
+    onSuccess: () => {
       updatePreview(null);
-      notifications.show({
-        title: 'הצלחה',
-        message: 'תמונת הפרופיל הוסרה',
-        color: 'green',
-      });
-    } catch (error) {
-      console.error('Remove image error:', error);
-      const errorMessage = 'מחיקת התמונה נכשלה';
-      setError(errorMessage);
-      notifications.show({
-        title: 'שגיאה',
-        message: errorMessage,
-        color: 'red',
-      });
-      updatePreview(previousPreview ?? initialImage ?? null);
-    } finally {
-      setStage('idle');
-    }
+    },
+    onError: () => {
+      updatePreview(preview ?? initialImage ?? null);
+    },
+    successMessage: 'תמונת הפרופיל הוסרה',
+    errorMessage: 'מחיקת התמונה נכשלה',
+  });
+
+  const clearPreview = () => {
+    setError(null);
+    void handleRemove();
   };
 
   const getLoadingText = (): string => {
@@ -291,22 +274,17 @@ export function ImageUpload({
       <Stack gap="xs">
         <Group align="flex-start">
           {preview ? (
-            <Box pos="relative" w={80} h={80}>
-              <Image src={preview} alt="Preview" w={80} h={80} radius="md" fit="cover" />
-              {!isUploading && !disabled && (
-                <ActionIcon
-                  onClick={clearPreview}
-                  variant="filled"
-                  color="dark"
-                  size="xs"
-                  radius="xl"
-                  aria-label="הסר תמונה"
-                  style={{ position: 'absolute', top: -5, right: -5 }}
-                >
-                  <IconX size={12} />
-                </ActionIcon>
-              )}
-            </Box>
+            <RemovableImage
+              src={preview}
+              alt="Preview"
+              w={80}
+              h={80}
+              radius="md"
+              fit="cover"
+              onRemove={clearPreview}
+              isRemoving={isRemoving}
+              showRemoveButton={!isUploading && !disabled}
+            />
           ) : (
             <Box
               w={80}
@@ -323,30 +301,32 @@ export function ImageUpload({
               <IconUpload size={24} color="gray" />
             </Box>
           )}
-          <Stack gap="xs">
-            <FileButton
-              onChange={handleFileChange}
-              accept={accept}
-              disabled={disabled || isUploading}
-              inputProps={{ disabled: disabled || isUploading }}
-            >
-              {(props) => (
-                <Button
-                  {...props}
-                  variant="default"
-                  disabled={disabled || isUploading}
-                  leftSection={isUploading ? <Loader size="xs" /> : <IconUpload size={16} />}
-                >
-                  {isUploading ? getLoadingText() : label}
-                </Button>
-              )}
-            </FileButton>
-            <Text size="xs" c="dimmed">
-              פורמטים נתמכים: JPG, PNG, WEBP
-              <br />
-              גודל מקסימלי: {formatFileSize(maxSizeBytes)}
-            </Text>
-          </Stack>
+          {(!preview || !hideUploadWhenHasValue) && (
+            <Stack gap="xs">
+              <FileButton
+                onChange={handleFileChange}
+                accept={accept}
+                disabled={disabled || isUploading}
+                inputProps={{ disabled: disabled || isUploading }}
+              >
+                {(props) => (
+                  <Button
+                    {...props}
+                    variant="default"
+                    disabled={disabled || isUploading}
+                    leftSection={isUploading ? <Loader size="xs" /> : <IconUpload size={16} />}
+                  >
+                    {isUploading ? getLoadingText() : label}
+                  </Button>
+                )}
+              </FileButton>
+              <Text size="xs" c="dimmed">
+                פורמטים נתמכים: JPG, PNG, WEBP
+                <br />
+                גודל מקסימלי: {formatFileSize(maxSizeBytes)}
+              </Text>
+            </Stack>
+          )}
         </Group>
         {error && showErrorInline && (
           <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">

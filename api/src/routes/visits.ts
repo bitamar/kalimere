@@ -17,6 +17,7 @@ import { uploadUrlResponseSchema } from '@kalimere/types/common';
 import {
   addVisitImage,
   createVisitForUser,
+  deleteVisitImage,
   getVisitForUser,
   getVisitImageUploadUrl,
   listVisitsForPet,
@@ -142,6 +143,24 @@ const visitRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         originalName ?? undefined,
         contentType ?? undefined
       );
+      return reply.code(200).send(image);
+    }
+  );
+
+  app.delete(
+    '/visits/:id/images/:imageId',
+    {
+      preHandler: app.authenticate,
+      schema: {
+        params: visitParamsSchema.extend({ imageId: z.string() }),
+        response: {
+          200: visitImageSchema,
+        },
+      },
+    },
+    async (req, reply) => {
+      ensureAuthed(req);
+      const image = await deleteVisitImage(req.user.id, req.params.id, req.params.imageId);
       return reply.code(200).send(image);
     }
   );

@@ -9,6 +9,7 @@ import {
   seedTreatment,
 } from '../utils/db.js';
 import { injectAuthed } from '../utils/inject.js';
+import { s3Service } from '../../src/services/s3.js';
 import type {
   VisitResponse,
   VisitImage,
@@ -235,5 +236,46 @@ describe('routes/visits', () => {
       contentType: 'image/png',
     });
     expect(detailsResult.body.visit.images[0].url).toMatch(/^https?:\/\//);
+  });
+
+  it('allows deleting a visit image', async () => {
+    const { user, session } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Buddy', type: 'dog' });
+
+    const createResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: '/visits',
+      payload: {
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: '2025-10-15T10:00:00.000Z',
+      },
+    });
+
+    const visitId = (createResponse.json() as VisitResponse).visit.id;
+
+    const imageResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visitId}/images`,
+      payload: { key: 'some/key', originalName: 'test.png', contentType: 'image/png' },
+    });
+    const createdImage = imageResponse.json() as VisitImage;
+
+    const deleteSpy = vi.spyOn(s3Service, 'deleteObject').mockResolvedValue(undefined);
+    const deleteResponse = await injectAuthed(app, session.id, {
+      method: 'DELETE',
+      url: `/visits/${visitId}/images/${createdImage.id}`,
+    });
+    expect(deleteResponse.statusCode).toBe(200);
+
+    expect(deleteSpy).toHaveBeenCalledWith('some/key');
+
+    const detailsResponse = await injectAuthed(app, session.id, {
+      method: 'GET',
+      url: `/visits/${visitId}`,
+    });
+    const detailsResult = getJson<VisitWithDetailsResponse>(detailsResponse);
+    expect(detailsResult.body.visit.images).toHaveLength(0);
   });
 });

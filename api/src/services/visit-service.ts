@@ -1,8 +1,11 @@
 import {
   createVisit,
+  createVisitImages,
   createVisitNotes,
   createVisitTreatments,
+  deleteVisitImage as deleteVisitImageRepo,
   findActiveVisitsByPetId,
+  findVisitImageById,
   findVisitWithCustomerById,
   findVisitWithDetailsById,
   updateVisitById,
@@ -311,7 +314,26 @@ export async function getVisitImageUploadUrl(userId: string, visitId: string, co
   return { url, key, uuid };
 }
 
-import { createVisitImages } from '../repositories/visit-repository.js';
+export async function deleteVisitImage(userId: string, visitId: string, imageId: string) {
+  await ensureVisitBelongsToUser(userId, visitId);
+
+  const image = await findVisitImageById(imageId);
+  if (!image) {
+    throw new Error('Image not found');
+  }
+
+  // Delete from S3 first
+  try {
+    await s3Service.deleteObject(image.storageKey);
+  } catch (error) {
+    console.error(`Failed to delete object from S3: ${image.storageKey}`, error);
+    // We continue with soft delete even if S3 delete fails, to keep DB consistent
+  }
+
+  const deleted = await deleteVisitImageRepo(imageId);
+  if (!deleted) throw new Error('Failed to delete visit image');
+  return serializeVisitImage(deleted);
+}
 
 export async function addVisitImage(
   userId: string,

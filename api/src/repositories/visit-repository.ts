@@ -95,3 +95,21 @@ export async function createVisitImages(values: VisitImageInsert[]) {
   if (values.length === 0) return [] as VisitImageRecord[];
   return db.insert(visitImages).values(values).returning();
 }
+
+export async function deleteVisitImage(imageId: string) {
+  const [row] = await db
+    .update(visitImages)
+    .set({ isDeleted: true })
+    .where(and(eq(visitImages.id, imageId), eq(visitImages.isDeleted, false)))
+    .returning();
+  return row ?? null;
+}
+
+export async function findVisitImageById(imageId: string) {
+  const [row] = await db
+    .select()
+    .from(visitImages)
+    .where(and(eq(visitImages.id, imageId), eq(visitImages.isDeleted, false)))
+    .limit(1);
+  return row ?? null;
+}

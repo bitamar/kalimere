@@ -544,4 +544,50 @@ describe('ImageUpload', () => {
       expect(screen.queryByText(/הקובץ גדול מדי/)).not.toBeInTheDocument();
     });
   });
+  it('hides upload button when hideUploadWhenHasValue is true and image is present', () => {
+    const mockUploadUrlRequest = vi.fn();
+    const mockUploadComplete = vi.fn();
+
+    const { rerender } = renderWithProviders(
+      <ImageUpload
+        onUploadUrlRequest={mockUploadUrlRequest}
+        onUploadComplete={mockUploadComplete}
+        hideUploadWhenHasValue={true}
+        initialImage="https://example.com/image.jpg"
+      />
+    );
+
+    expect(screen.queryByText('העלה תמונה')).not.toBeInTheDocument();
+
+    // Should show when no image is present
+    rerender(
+      <MantineProvider>
+        <Notifications />
+        <ImageUpload
+          onUploadUrlRequest={mockUploadUrlRequest}
+          onUploadComplete={mockUploadComplete}
+          hideUploadWhenHasValue={true}
+          initialImage={null}
+        />
+      </MantineProvider>
+    );
+
+    expect(screen.getByText('העלה תמונה')).toBeInTheDocument();
+  });
+
+  it('shows upload button when hideUploadWhenHasValue is false even if image is present', () => {
+    const mockUploadUrlRequest = vi.fn();
+    const mockUploadComplete = vi.fn();
+
+    renderWithProviders(
+      <ImageUpload
+        onUploadUrlRequest={mockUploadUrlRequest}
+        onUploadComplete={mockUploadComplete}
+        hideUploadWhenHasValue={false}
+        initialImage="https://example.com/image.jpg"
+      />
+    );
+
+    expect(screen.getByText('העלה תמונה')).toBeInTheDocument();
+  });
 });

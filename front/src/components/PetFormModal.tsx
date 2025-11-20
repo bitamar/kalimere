@@ -139,6 +139,7 @@ export function PetFormModal({
           initialImage={values.imageUrl}
           className="mb-4"
           disabled={Boolean(submitLoading)}
+          hideUploadWhenHasValue={true}
           {...(onRemoveImage
             ? {
                 onRemoveImage: async () => {

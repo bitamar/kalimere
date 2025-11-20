@@ -97,3 +97,9 @@ export async function addVisitImage(
     body: JSON.stringify({ key, originalName, contentType }),
   });
 }
+
+export async function deleteVisitImage(visitId: string, imageId: string): Promise<void> {
+  await fetchJson(`/visits/${visitId}/images/${imageId}`, {
+    method: 'DELETE',
+  });
+}
