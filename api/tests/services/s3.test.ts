@@ -7,53 +7,53 @@ vi.mock('@aws-sdk/client-s3');
 vi.mock('@aws-sdk/s3-request-presigner');
 
 describe('S3Service', () => {
-    let s3Service: S3Service;
+  let s3Service: S3Service;
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-        s3Service = new S3Service();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    s3Service = new S3Service();
+  });
+
+  describe('getPresignedUploadUrl', () => {
+    it('generates a presigned PUT URL', async () => {
+      const mockUrl = 'https://s3.amazonaws.com/test-bucket/test-key?signature=abc';
+      vi.mocked(getSignedUrl).mockResolvedValue(mockUrl);
+
+      const result = await s3Service.getPresignedUploadUrl('test-key', 'image/jpeg');
+
+      expect(result).toBe(mockUrl);
+      expect(getSignedUrl).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.any(PutObjectCommand),
+        expect.objectContaining({ expiresIn: 900 })
+      );
     });
+  });
 
-    describe('getPresignedUploadUrl', () => {
-        it('generates a presigned PUT URL', async () => {
-            const mockUrl = 'https://s3.amazonaws.com/test-bucket/test-key?signature=abc';
-            vi.mocked(getSignedUrl).mockResolvedValue(mockUrl);
+  describe('getPresignedDownloadUrl', () => {
+    it('generates a presigned GET URL', async () => {
+      const mockUrl = 'https://s3.amazonaws.com/test-bucket/test-key?signature=xyz';
+      vi.mocked(getSignedUrl).mockResolvedValue(mockUrl);
 
-            const result = await s3Service.getPresignedUploadUrl('test-key', 'image/jpeg');
+      const result = await s3Service.getPresignedDownloadUrl('test-key');
 
-            expect(result).toBe(mockUrl);
-            expect(getSignedUrl).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.any(PutObjectCommand),
-                expect.objectContaining({ expiresIn: 900 })
-            );
-        });
+      expect(result).toBe(mockUrl);
+      expect(getSignedUrl).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.any(GetObjectCommand),
+        expect.objectContaining({ expiresIn: 3600 })
+      );
     });
+  });
 
-    describe('getPresignedDownloadUrl', () => {
-        it('generates a presigned GET URL', async () => {
-            const mockUrl = 'https://s3.amazonaws.com/test-bucket/test-key?signature=xyz';
-            vi.mocked(getSignedUrl).mockResolvedValue(mockUrl);
+  describe('deleteObject', () => {
+    it('sends a delete command to S3', async () => {
+      const mockSend = vi.fn().mockResolvedValue({});
+      vi.spyOn(s3Service['client'], 'send').mockImplementation(mockSend);
 
-            const result = await s3Service.getPresignedDownloadUrl('test-key');
+      await s3Service.deleteObject('test-key');
 
-            expect(result).toBe(mockUrl);
-            expect(getSignedUrl).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.any(GetObjectCommand),
-                expect.objectContaining({ expiresIn: 3600 })
-            );
-        });
+      expect(mockSend).toHaveBeenCalledWith(expect.any(DeleteObjectCommand));
     });
-
-    describe('deleteObject', () => {
-        it('sends a delete command to S3', async () => {
-            const mockSend = vi.fn().mockResolvedValue({});
-            vi.spyOn(s3Service['client'], 'send').mockImplementation(mockSend);
-
-            await s3Service.deleteObject('test-key');
-
-            expect(mockSend).toHaveBeenCalledWith(expect.any(DeleteObjectCommand));
-        });
-    });
+  });
 });
