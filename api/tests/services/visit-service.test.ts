@@ -13,9 +13,11 @@ import {
   getVisitImageUploadUrl,
   listVisitsForPet,
   updateVisitForUser,
+  addVisitImage,
+  deleteVisitImage,
 } from '../../src/services/visit-service.js';
 import { db } from '../../src/db/client.js';
-import { visitNotes, visitTreatments } from '../../src/db/schema.js';
+import { visitImages, visitNotes, visitTreatments } from '../../src/db/schema.js';
 import { s3Service } from '../../src/services/s3.js';
 
 async function createUserWithRecords() {
@@ -309,5 +311,48 @@ describe('visit-service', () => {
     expect(visitSegment).toBe(visit.id);
     expect(fileName?.length).toBeGreaterThan(10);
     expect(s3Service.getPresignedUploadUrl).toHaveBeenCalledWith(key, 'image/png');
+  });
+
+  it('rejects deleting visit images that do not belong to the visit', async () => {
+    const { user: owner } = await createTestUserWithSession();
+    const ownerCustomer = await seedCustomer(owner.id, { name: 'Owner' });
+    const ownerPet = await seedPet(ownerCustomer.id, { name: 'Fido', type: 'dog' });
+    const ownerVisit = await createVisitForUser(owner.id, {
+      customerId: ownerCustomer.id,
+      petId: ownerPet.id,
+      scheduledStartAt: '2026-02-01T10:00:00.000Z',
+    });
+
+    vi.spyOn(s3Service, 'getPresignedDownloadUrl').mockResolvedValue('https://download.example');
+    const ownerImage = await addVisitImage(
+      owner.id,
+      ownerVisit.id,
+      'owner/key',
+      'owner.png',
+      'image/png'
+    );
+
+    const { user: other } = await createTestUserWithSession();
+    const otherCustomer = await seedCustomer(other.id, { name: 'Other' });
+    const otherPet = await seedPet(otherCustomer.id, { name: 'Buddy', type: 'cat' });
+    const otherVisit = await createVisitForUser(other.id, {
+      customerId: otherCustomer.id,
+      petId: otherPet.id,
+      scheduledStartAt: '2026-03-01T10:00:00.000Z',
+    });
+
+    const deleteSpy = vi.spyOn(s3Service, 'deleteObject').mockResolvedValue(undefined);
+    await expect(deleteVisitImage(other.id, otherVisit.id, ownerImage.id)).rejects.toHaveProperty(
+      'statusCode',
+      404
+    );
+    expect(deleteSpy).not.toHaveBeenCalled();
+
+    const [imageRow] = await db
+      .select()
+      .from(visitImages)
+      .where(eq(visitImages.id, ownerImage.id))
+      .limit(1);
+    expect(imageRow?.isDeleted).toBe(false);
   });
 });

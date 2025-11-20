@@ -68,11 +68,13 @@ export function PetFormModal({
 }: PetFormModalProps) {
   const [values, setValues] = useState<PetFormValues>(initialFormValues);
   const [imageUpdateValue, setImageUpdateValue] = useState<string | null | undefined>(undefined);
+  const [imageOperationLoading, setImageOperationLoading] = useState(false);
 
   useEffect(() => {
     if (!opened) {
       setValues(initialFormValues);
       setImageUpdateValue(undefined);
+      setImageOperationLoading(false);
       return;
     }
 
@@ -84,6 +86,7 @@ export function PetFormModal({
       imageUrl: initialValues?.imageUrl ?? null,
     });
     setImageUpdateValue(undefined);
+    setImageOperationLoading(false);
   }, [
     opened,
     initialValues?.name,
@@ -126,7 +129,7 @@ export function PetFormModal({
       mode={mode}
       onSubmit={handleSubmit}
       submitDisabled={submitDisabled}
-      submitLoading={submitLoading ?? false}
+      submitLoading={submitLoading || imageOperationLoading}
     >
       {mode === 'edit' && onUploadUrlRequest && onUploadComplete && (
         <ImageUpload
@@ -136,18 +139,19 @@ export function PetFormModal({
             setImageUpdateValue(key);
           }}
           onPreviewChange={(previewUrl) => setValues((prev) => ({ ...prev, imageUrl: previewUrl }))}
+          onLoadingChange={setImageOperationLoading}
           initialImage={values.imageUrl}
           className="mb-4"
-          disabled={Boolean(submitLoading)}
+          disabled={Boolean(submitLoading || imageOperationLoading)}
           hideUploadWhenHasValue={true}
           {...(onRemoveImage
             ? {
-                onRemoveImage: async () => {
-                  await onRemoveImage();
-                  setImageUpdateValue(null);
-                  setValues((prev) => ({ ...prev, imageUrl: null }));
-                },
-              }
+              onRemoveImage: async () => {
+                await onRemoveImage();
+                setImageUpdateValue(null);
+                setValues((prev) => ({ ...prev, imageUrl: null }));
+              },
+            }
             : {})}
         />
       )}

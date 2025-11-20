@@ -12,6 +12,7 @@ interface ImageUploadProps {
   onUploadComplete: (key: string, file: File) => Promise<void>;
   onRemoveImage?: () => Promise<void>;
   onPreviewChange?: (value: string | null) => void;
+  onLoadingChange?: (loading: boolean) => void;
   disabled?: boolean;
   accept?: string;
   label?: string;
@@ -31,6 +32,7 @@ export function ImageUpload({
   onUploadComplete,
   onRemoveImage,
   onPreviewChange,
+  onLoadingChange,
   disabled = false,
   accept = 'image/png,image/jpeg,image/webp',
   label = 'העלה תמונה',
@@ -48,10 +50,37 @@ export function ImageUpload({
   const stageRef = useRef<UploadStage>('idle');
   const generatedPreviewRef = useRef<string | null>(null);
 
+  const { handleDelete: handleRemove, isDeleting: isRemoving } = useDeleteImage({
+    onDelete: async () => {
+      if (!onRemoveImage) {
+        updatePreview(null);
+        return;
+      }
+      await onRemoveImage();
+    },
+    onSuccess: () => {
+      updatePreview(null);
+    },
+    onError: () => {
+      updatePreview(preview ?? initialImage ?? null);
+    },
+    successMessage: 'תמונת הפרופיל הוסרה',
+    errorMessage: 'מחיקת התמונה נכשלה',
+  });
+
   const isUploading = uploadStage !== 'idle';
+  const isOperationInProgress = isUploading || isRemoving;
+
   const setStage = (stage: UploadStage) => {
+    const wasLoading = stageRef.current !== 'idle';
+    const willBeLoading = stage !== 'idle';
+
     stageRef.current = stage;
     setUploadStage(stage);
+
+    if (wasLoading !== willBeLoading) {
+      onLoadingChange?.(willBeLoading || isRemoving);
+    }
   };
 
   const updatePreview = (value: string | null, options: { generated?: boolean } = {}) => {
@@ -231,23 +260,9 @@ export function ImageUpload({
     }
   };
 
-  const { handleDelete: handleRemove, isDeleting: isRemoving } = useDeleteImage({
-    onDelete: async () => {
-      if (!onRemoveImage) {
-        updatePreview(null);
-        return;
-      }
-      await onRemoveImage();
-    },
-    onSuccess: () => {
-      updatePreview(null);
-    },
-    onError: () => {
-      updatePreview(preview ?? initialImage ?? null);
-    },
-    successMessage: 'תמונת הפרופיל הוסרה',
-    errorMessage: 'מחיקת התמונה נכשלה',
-  });
+  useEffect(() => {
+    onLoadingChange?.(isOperationInProgress);
+  }, [isOperationInProgress, onLoadingChange]);
 
   const clearPreview = () => {
     setError(null);

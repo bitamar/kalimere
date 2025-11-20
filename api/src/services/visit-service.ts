@@ -318,8 +318,8 @@ export async function deleteVisitImage(userId: string, visitId: string, imageId:
   await ensureVisitBelongsToUser(userId, visitId);
 
   const image = await findVisitImageById(imageId);
-  if (!image) {
-    throw new Error('Image not found');
+  if (!image || image.visitId !== visitId) {
+    throw notFound();
   }
 
   // Delete from S3 first
