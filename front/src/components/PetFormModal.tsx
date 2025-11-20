@@ -146,12 +146,12 @@ export function PetFormModal({
           hideUploadWhenHasValue={true}
           {...(onRemoveImage
             ? {
-              onRemoveImage: async () => {
-                await onRemoveImage();
-                setImageUpdateValue(null);
-                setValues((prev) => ({ ...prev, imageUrl: null }));
-              },
-            }
+                onRemoveImage: async () => {
+                  await onRemoveImage();
+                  setImageUpdateValue(null);
+                  setValues((prev) => ({ ...prev, imageUrl: null }));
+                },
+              }
             : {})}
         />
       )}
