@@ -11,6 +11,7 @@ import {
 import { injectAuthed } from '../utils/inject.js';
 import type {
   VisitResponse,
+  VisitImage,
   VisitWithDetailsResponse,
   VisitsListResponse,
 } from '@kalimere/types/visits';
@@ -211,7 +212,15 @@ describe('routes/visits', () => {
       payload: { key: uploadBody.key, originalName: 'test.png', contentType: 'image/png' },
     });
 
-    expect(imageResponse.statusCode).toBe(201);
+    expect(imageResponse.statusCode).toBe(200);
+    const createdImage = imageResponse.json() as VisitImage;
+    expect(createdImage).toMatchObject({
+      visitId,
+      originalName: 'test.png',
+      contentType: 'image/png',
+    });
+    expect(createdImage.id).toBeTruthy();
+    expect(createdImage.url).toMatch(/^https?:\/\//);
 
     // Verify image appears in visit details
     const detailsResponse = await injectAuthed(app, session.id, {

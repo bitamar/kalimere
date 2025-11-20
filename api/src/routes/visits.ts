@@ -128,7 +128,7 @@ const visitRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         params: visitParamsSchema,
         body: createVisitImageBodySchema,
         response: {
-          201: visitImageSchema,
+          200: visitImageSchema,
         },
       },
     },
@@ -142,7 +142,7 @@ const visitRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
         originalName ?? undefined,
         contentType ?? undefined
       );
-      return reply.code(201).send(image);
+      return reply.code(200).send(image);
     }
   );
 };
