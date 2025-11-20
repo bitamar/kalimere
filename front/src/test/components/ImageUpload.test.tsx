@@ -52,6 +52,10 @@ describe('ImageUpload', () => {
     });
     const mockUploadComplete = vi.fn().mockResolvedValue(undefined);
 
+    // Mock URL.createObjectURL which is not available in JSDOM
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    global.URL.revokeObjectURL = vi.fn();
+
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -65,33 +69,31 @@ describe('ImageUpload', () => {
     );
 
     const file = new File(['test'], 'test.png', { type: 'image/png' });
-    const input = screen.getByRole('button', { name: /העלה תמונה/i });
 
-    // Find the actual file input (hidden)
-    const fileInput = input.querySelector('input[type="file"]') as HTMLInputElement;
+    // Mantine's FileButton renders a hidden file input element
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     expect(fileInput).toBeInTheDocument();
 
-    if (fileInput) {
-      await user.upload(fileInput, file);
+    // Upload the file
+    await user.upload(fileInput, file);
 
-      await waitFor(() => {
-        expect(mockUploadUrlRequest).toHaveBeenCalledWith(file);
-      });
+    await waitFor(() => {
+      expect(mockUploadUrlRequest).toHaveBeenCalledWith(file);
+    });
 
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          'https://s3.amazonaws.com/bucket/key?signature=abc',
-          expect.objectContaining({
-            method: 'PUT',
-            body: file,
-          })
-        );
-      });
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://s3.amazonaws.com/bucket/key?signature=abc',
+        expect.objectContaining({
+          method: 'PUT',
+          body: file,
+        })
+      );
+    });
 
-      await waitFor(() => {
-        expect(mockUploadComplete).toHaveBeenCalledWith('test-key', file);
-      });
-    }
+    await waitFor(() => {
+      expect(mockUploadComplete).toHaveBeenCalledWith('test-key', file);
+    });
   });
 
   it('displays initial image when provided', () => {
