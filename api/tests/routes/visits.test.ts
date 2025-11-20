@@ -194,7 +194,15 @@ describe('routes/visits', () => {
     expect(uploadUrlResponse.statusCode).toBe(200);
     const uploadBody = uploadUrlResponse.json() as { url: string; key: string };
     expect(uploadBody.url).toMatch(/^https?:\/\//);
-    expect(uploadBody.key).toMatch(/^visits\//);
+    const [userSegment, customerSegment, petSegment, visitsSegment, visitSegment, fileName] =
+      uploadBody.key.split('/');
+    expect(userSegment).toContain(user.email.split('@')[0]?.toLowerCase());
+    expect(userSegment.endsWith(user.id)).toBe(true);
+    expect(customerSegment.endsWith(customer.id)).toBe(true);
+    expect(petSegment.endsWith(pet.id)).toBe(true);
+    expect(visitsSegment).toBe('visits');
+    expect(visitSegment).toBe(visitId);
+    expect(fileName?.length).toBeGreaterThan(10);
 
     // Test image record creation
     const imageResponse = await injectAuthed(app, session.id, {

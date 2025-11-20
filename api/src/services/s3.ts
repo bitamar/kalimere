@@ -14,6 +14,36 @@ try {
   // Env not available in test environment
 }
 
+function slugifyLabel(label: string): string {
+  return label
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .toLowerCase()
+    .slice(0, 60);
+}
+
+export function formatS3Segment(label: string | null | undefined, id: string) {
+  const slug = typeof label === 'string' ? slugifyLabel(label) : '';
+  return slug ? `${slug}-${id}` : id;
+}
+
+export function buildPetScopePrefix(args: {
+  userLabel: string | null | undefined;
+  userId: string;
+  customerName: string | null | undefined;
+  customerId: string;
+  petName: string | null | undefined;
+  petId: string;
+}) {
+  const userSegment = formatS3Segment(args.userLabel, args.userId);
+  const customerSegment = formatS3Segment(args.customerName, args.customerId);
+  const petSegment = formatS3Segment(args.petName, args.petId);
+  return `${userSegment}/${customerSegment}/${petSegment}`;
+}
+
 export class S3Service {
   private client: S3Client;
   private bucketName: string;

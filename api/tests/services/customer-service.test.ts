@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
 import { db } from '../../src/db/client.js';
@@ -10,10 +10,12 @@ import {
   deletePetForCustomer,
   getCustomerForUser,
   getPetForCustomer,
+  getPetImageUploadUrl,
   listCustomersForUser,
   listPetsForCustomer,
   updateCustomerForUser,
 } from '../../src/services/customer-service.js';
+import { s3Service } from '../../src/services/s3.js';
 
 async function createUser() {
   const [user] = await db
@@ -25,11 +27,13 @@ async function createUser() {
 
 describe('customer-service', () => {
   beforeEach(async () => {
+    vi.restoreAllMocks();
     await resetDb();
   });
 
   afterEach(async () => {
     await resetDb();
+    vi.restoreAllMocks();
   });
 
   it('manages customers and pets for a user', async () => {
@@ -87,5 +91,34 @@ describe('customer-service', () => {
       'statusCode',
       404
     );
+  });
+
+  it('generates pet image upload keys under user/customer/pet scope', async () => {
+    const user = await createUser();
+    const customer = await createCustomerForUser(user.id, {
+      name: '  Example Customer  ',
+      email: 'example@example.com',
+    });
+    const pet = await createPetForCustomer(customer.id, {
+      name: 'Luna',
+      type: 'cat',
+      gender: 'female',
+    });
+
+    const mockUrl = 'https://s3-upload.example.com';
+    vi.spyOn(s3Service, 'getPresignedUploadUrl').mockResolvedValue(mockUrl);
+
+    const { key, url } = await getPetImageUploadUrl(user.id, customer.id, pet.id, 'image/jpeg');
+
+    expect(url).toBe(mockUrl);
+    const [userSegment, customerSegment, petSegment, fileName] = key.split('/');
+    expect(userSegment).toContain(user.email.split('@')[0]?.toLowerCase());
+    expect(userSegment.endsWith(user.id)).toBe(true);
+    expect(customerSegment.startsWith('example-customer')).toBe(true);
+    expect(customerSegment.endsWith(customer.id)).toBe(true);
+    expect(petSegment.startsWith('luna')).toBe(true);
+    expect(petSegment.endsWith(pet.id)).toBe(true);
+    expect(fileName?.startsWith('profile-')).toBe(true);
+    expect(s3Service.getPresignedUploadUrl).toHaveBeenCalledWith(key, 'image/jpeg');
   });
 });

@@ -257,6 +257,11 @@ describe('routes/customers', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json() as { url: string; key: string };
     expect(body.url).toMatch(/^https?:\/\//);
-    expect(body.key).toMatch(/^pets\//);
+    const [userSegment, customerSegment, petSegment, fileName] = body.key.split('/');
+    expect(userSegment).toContain(user.email.split('@')[0]?.toLowerCase());
+    expect(userSegment.endsWith(user.id)).toBe(true);
+    expect(customerSegment.endsWith(customer.id)).toBe(true);
+    expect(petSegment.endsWith(pet.id)).toBe(true);
+    expect(fileName?.startsWith('profile-')).toBe(true);
   });
 });

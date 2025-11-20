@@ -225,9 +225,10 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (req) => {
+      ensureAuthed(req);
       const { customerId, petId } = req.params;
       const { contentType } = req.body;
-      return getPetImageUploadUrl(customerId, petId, contentType);
+      return getPetImageUploadUrl(req.user.id, customerId, petId, contentType);
     }
   );
 

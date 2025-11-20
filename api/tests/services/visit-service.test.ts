@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import {
   createTestUserWithSession,
@@ -10,11 +10,13 @@ import {
 import {
   createVisitForUser,
   getVisitForUser,
+  getVisitImageUploadUrl,
   listVisitsForPet,
   updateVisitForUser,
 } from '../../src/services/visit-service.js';
 import { db } from '../../src/db/client.js';
 import { visitNotes, visitTreatments } from '../../src/db/schema.js';
+import { s3Service } from '../../src/services/s3.js';
 
 async function createUserWithRecords() {
   const { user } = await createTestUserWithSession();
@@ -26,11 +28,13 @@ async function createUserWithRecords() {
 
 describe('visit-service', () => {
   beforeEach(async () => {
+    vi.restoreAllMocks();
     await resetDb();
   });
 
   afterEach(async () => {
     await resetDb();
+    vi.restoreAllMocks();
   });
 
   it('creates a visit with normalized fields and related records', async () => {
@@ -278,5 +282,32 @@ describe('visit-service', () => {
         ],
       })
     ).rejects.toHaveProperty('statusCode', 404);
+  });
+
+  it('scopes visit image upload keys under user/customer/pet visits folder', async () => {
+    const { user, customer, pet } = await createUserWithRecords();
+    const visit = await createVisitForUser(user.id, {
+      customerId: customer.id,
+      petId: pet.id,
+      scheduledStartAt: '2026-01-01T10:00:00.000Z',
+    });
+
+    const mockUrl = 'https://s3-upload.example.com/visit';
+    vi.spyOn(s3Service, 'getPresignedUploadUrl').mockResolvedValue(mockUrl);
+
+    const { key, url } = await getVisitImageUploadUrl(user.id, visit.id, 'image/png');
+
+    expect(url).toBe(mockUrl);
+    const [userSegment, customerSegment, petSegment, visitsSegment, visitSegment, fileName] =
+      key.split('/');
+    expect(userSegment).toContain(user.email.split('@')[0]?.toLowerCase());
+    expect(userSegment.endsWith(user.id)).toBe(true);
+    expect(customerSegment.endsWith(customer.id)).toBe(true);
+    expect(petSegment.startsWith(pet.name.toLowerCase())).toBe(true);
+    expect(petSegment.endsWith(pet.id)).toBe(true);
+    expect(visitsSegment).toBe('visits');
+    expect(visitSegment).toBe(visit.id);
+    expect(fileName?.length).toBeGreaterThan(10);
+    expect(s3Service.getPresignedUploadUrl).toHaveBeenCalledWith(key, 'image/png');
   });
 });

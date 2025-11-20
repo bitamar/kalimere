@@ -18,6 +18,7 @@ import {
   type PetInsert,
   type PetRecord,
 } from '../repositories/pet-repository.js';
+import { findUserById } from '../repositories/user-repository.js';
 import { notFound } from '../lib/app-error.js';
 import {
   customerSchema,
@@ -28,7 +29,7 @@ import {
   type UpdatePetBody,
 } from '@kalimere/types/customers';
 
-import { s3Service } from './s3.js';
+import { buildPetScopePrefix, s3Service } from './s3.js';
 
 type CustomerDto = z.infer<typeof customerSchema>;
 type PetDto = z.infer<typeof petSchema>;
@@ -192,11 +193,30 @@ export async function deletePetForCustomer(customerId: string, petId: string) {
   return { ok: true } as const;
 }
 
-export async function getPetImageUploadUrl(customerId: string, petId: string, contentType: string) {
-  const record = await findPetByIdForCustomer(customerId, petId);
-  if (!record) throw notFound();
+export async function getPetImageUploadUrl(
+  userId: string,
+  customerId: string,
+  petId: string,
+  contentType: string
+) {
+  const user = await findUserById(userId);
+  if (!user) throw notFound();
 
-  const key = `pets/${petId}/profile-${Date.now()}`;
+  const customer = await findCustomerByIdForUser(userId, customerId);
+  if (!customer) throw notFound();
+
+  const pet = await findPetByIdForCustomer(customer.id, petId);
+  if (!pet) throw notFound();
+
+  const prefix = buildPetScopePrefix({
+    userLabel: user.email ?? user.name ?? null,
+    userId: user.id,
+    customerName: customer.name,
+    customerId: customer.id,
+    petName: pet.name,
+    petId: pet.id,
+  });
+  const key = `${prefix}/profile-${Date.now()}`;
   const url = await s3Service.getPresignedUploadUrl(key, contentType);
   return { url, key };
 }

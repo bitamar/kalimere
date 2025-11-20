@@ -12,6 +12,7 @@ import {
   type VisitNoteRecord,
   type VisitImageRecord,
 } from '../repositories/visit-repository.js';
+import { findUserById } from '../repositories/user-repository.js';
 import { findCustomerByIdForUser } from '../repositories/customer-repository.js';
 import { findPetByIdForCustomer } from '../repositories/pet-repository.js';
 import { findTreatmentByIdForUser } from '../repositories/treatment-repository.js';
@@ -25,7 +26,7 @@ import {
   type VisitNote,
   type VisitImage,
 } from '@kalimere/types/visits';
-import { s3Service } from './s3.js';
+import { buildPetScopePrefix, s3Service } from './s3.js';
 
 function cleanNullableString(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null;
@@ -217,7 +218,7 @@ export async function createVisitForUser(userId: string, input: CreateVisitBody)
 
 async function ensureVisitBelongsToUser(userId: string, visitId: string) {
   const visit = await findVisitWithCustomerById(visitId);
-  if (!visit || !visit.customer || visit.customer.userId !== userId) {
+  if (!visit || !visit.customer || visit.customer.userId !== userId || !visit.pet) {
     throw notFound();
   }
   return visit;
@@ -287,9 +288,25 @@ export async function updateVisitForUser(userId: string, visitId: string, input:
 }
 
 export async function getVisitImageUploadUrl(userId: string, visitId: string, contentType: string) {
-  await ensureVisitBelongsToUser(userId, visitId);
+  const visit = await ensureVisitBelongsToUser(userId, visitId);
+  const user = await findUserById(userId);
+  if (!user) throw notFound();
+
+  const customer = visit.customer;
+  const pet = visit.pet;
+  if (!customer || !pet) throw notFound();
+
+  const prefix = buildPetScopePrefix({
+    userLabel: user.email ?? user.name ?? null,
+    userId: user.id,
+    customerName: customer.name,
+    customerId: customer.id,
+    petName: pet.name,
+    petId: pet.id,
+  });
+
   const uuid = crypto.randomUUID();
-  const key = `visits/${visitId}/${uuid}`;
+  const key = `${prefix}/visits/${visit.id}/${uuid}`;
   const url = await s3Service.getPresignedUploadUrl(key, contentType);
   return { url, key, uuid };
 }
