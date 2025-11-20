@@ -180,7 +180,7 @@ describe('PetDetail page', () => {
     const preview = await within(dialog).findByRole('img', { name: 'Preview' });
     expect(preview).toHaveAttribute('src', petWithImage.imageUrl);
 
-    const removeButton = within(dialog).getByRole('button', { name: 'הסר תמונת פרופיל' });
+    const removeButton = within(dialog).getByRole('button', { name: 'הסר תמונה' });
     await user.click(removeButton);
 
     await waitFor(() =>
