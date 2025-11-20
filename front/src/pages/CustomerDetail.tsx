@@ -121,6 +121,7 @@ export function CustomerDetail() {
         breed: payload.breed ?? null,
         isSterilized: null,
         isCastrated: null,
+        imageUrl: null,
       };
       queryClient.setQueryData<Pet[]>(petsQueryKey, (old = []) => [...old, optimisticPet]);
       if (previousCustomer) {

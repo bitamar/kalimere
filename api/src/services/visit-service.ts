@@ -104,6 +104,7 @@ async function serializeVisitImage(record: VisitImageRecord): Promise<VisitImage
     visitId: record.visitId,
     url: await s3Service.getPresignedDownloadUrl(record.storageKey),
     originalName: record.originalName,
+    contentType: record.contentType,
     createdAt: toIsoString(record.createdAt),
   };
 }
@@ -285,12 +286,7 @@ export async function updateVisitForUser(userId: string, visitId: string, input:
   return serializeVisitWithDetails(record);
 }
 
-export async function getVisitImageUploadUrl(
-  userId: string,
-  visitId: string,
-  contentType: string,
-  originalName?: string
-) {
+export async function getVisitImageUploadUrl(userId: string, visitId: string, contentType: string) {
   await ensureVisitBelongsToUser(userId, visitId);
   const uuid = crypto.randomUUID();
   const key = `visits/${visitId}/${uuid}`;

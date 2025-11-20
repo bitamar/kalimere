@@ -77,12 +77,11 @@ export async function updateVisit(
 
 export async function getVisitImageUploadUrl(
   visitId: string,
-  contentType: string,
-  originalName?: string
+  contentType: string
 ): Promise<{ url: string; key: string }> {
   const json = await fetchJson<unknown>(`/visits/${visitId}/images/upload-url`, {
     method: 'POST',
-    body: JSON.stringify({ contentType, originalName }),
+    body: JSON.stringify({ contentType }),
   });
   return json as { url: string; key: string };
 }

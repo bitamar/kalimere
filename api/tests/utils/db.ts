@@ -10,11 +10,13 @@ import {
   visitTreatments,
   visits,
   treatments,
+  visitImages,
 } from '../../src/db/schema.js';
 
 export async function resetDb() {
   await db.delete(visitTreatments);
   await db.delete(visitNotes);
+  await db.delete(visitImages);
   await db.delete(appointments);
   await db.delete(visits);
   await db.delete(pets);

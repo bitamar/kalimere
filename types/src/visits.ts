@@ -37,6 +37,7 @@ export const visitImageSchema = z.object({
   visitId: uuidSchema,
   url: z.string().url(),
   originalName: nullableString,
+  contentType: nullableString,
   createdAt: isoDateTime,
 });
 

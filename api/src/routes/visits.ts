@@ -107,7 +107,7 @@ const visitRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       preHandler: app.authenticate,
       schema: {
         params: visitParamsSchema,
-        body: z.object({ contentType: z.string(), originalName: z.string().optional() }),
+        body: z.object({ contentType: z.string() }),
         response: {
           200: uploadUrlResponseSchema,
         },
@@ -115,8 +115,8 @@ const visitRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     },
     async (req) => {
       ensureAuthed(req);
-      const { contentType, originalName } = req.body;
-      return getVisitImageUploadUrl(req.user.id, req.params.id, contentType, originalName);
+      const { contentType } = req.body;
+      return getVisitImageUploadUrl(req.user.id, req.params.id, contentType);
     }
   );
 

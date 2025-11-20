@@ -397,7 +397,7 @@ export function VisitDetail() {
 
           <ImageUpload
             label="הוסף תמונה"
-            onUploadUrlRequest={(file) => getVisitImageUploadUrl(visit.id, file.type, file.name)}
+            onUploadUrlRequest={(file) => getVisitImageUploadUrl(visit.id, file.type)}
             onUploadComplete={async (key, file) => {
               await addVisitImage(visit.id, key, file.name, file.type);
               await queryClient.invalidateQueries({ queryKey: visitQueryKey });

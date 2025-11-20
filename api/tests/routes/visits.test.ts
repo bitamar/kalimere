@@ -203,7 +203,7 @@ describe('routes/visits', () => {
       payload: { key: uploadBody.key, originalName: 'test.png', contentType: 'image/png' },
     });
 
-    expect(imageResponse.statusCode).toBe(200);
+    expect(imageResponse.statusCode).toBe(201);
 
     // Verify image appears in visit details
     const detailsResponse = await injectAuthed(app, session.id, {

@@ -33,6 +33,7 @@ const visitWithDetails: VisitWithDetails = {
   ...baseVisit,
   treatments: [],
   notes: [],
+  images: [],
 };
 
 describe('visits api', () => {
