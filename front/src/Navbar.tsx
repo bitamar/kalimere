@@ -1,13 +1,5 @@
-import { AppShell, Divider, NavLink, rem, ScrollArea, Title } from '@mantine/core';
-import {
-  IconHome2,
-  IconChevronRight,
-  IconChevronLeft,
-  IconFirstAidKit,
-  IconSettings,
-  IconUsers,
-} from '@tabler/icons-react';
-import { DatePicker } from '@mantine/dates';
+import { AppShell, Divider, NavLink, ScrollArea } from '@mantine/core';
+import { IconHome2, IconFirstAidKit, IconSettings, IconUsers } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Navbar() {
@@ -47,18 +39,6 @@ export default function Navbar() {
         />
 
         <Divider my="md" />
-
-        <Title order={6} mb="xs">
-          תאריכים
-        </Title>
-        <DatePicker
-          allowDeselect
-          weekendDays={[5, 6]}
-          locale="he"
-          previousIcon={<IconChevronRight size={16} />}
-          nextIcon={<IconChevronLeft size={16} />}
-          styles={{ day: { marginInline: rem(5) } }}
-        />
       </ScrollArea>
     </AppShell.Navbar>
   );

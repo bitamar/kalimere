@@ -1,5 +1,4 @@
 import { type ReactNode, useEffect, useState } from 'react';
-import 'dayjs/locale/he';
 import { AppShell, Center, Loader, useMantineColorScheme, useMantineTheme } from '@mantine/core';
 import Header from './Header';
 import Navbar from './Navbar';
