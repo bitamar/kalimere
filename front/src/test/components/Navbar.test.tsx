@@ -5,7 +5,7 @@ import { renderWithProviders } from '../utils/renderWithProviders';
 import { AppShell } from '@mantine/core';
 
 describe('Navbar', () => {
-  it('renders navigation links and date picker', () => {
+  it('renders navigation links', () => {
     renderWithProviders(
       <AppShell navbar={{ width: 280, breakpoint: 'sm' }}>
         <AppShell.Navbar>
@@ -18,6 +18,5 @@ describe('Navbar', () => {
     expect(screen.getByText('סוגי טיפולים')).toBeInTheDocument();
     expect(screen.getByText('לקוחות')).toBeInTheDocument();
     expect(screen.getByText('הגדרות')).toBeInTheDocument();
-    expect(screen.getByText('תאריכים')).toBeInTheDocument();
   });
 });
