@@ -15,11 +15,11 @@ import {
   type VisitNoteRecord,
   type VisitImageRecord,
 } from '../repositories/visit-repository.js';
-import { findUserById } from '../repositories/user-repository.js';
+
 import { findCustomerByIdForUser } from '../repositories/customer-repository.js';
 import { findPetByIdForCustomer } from '../repositories/pet-repository.js';
 import { findTreatmentByIdForUser } from '../repositories/treatment-repository.js';
-import { notFound } from '../lib/app-error.js';
+import { badRequest, notFound } from '../lib/app-error.js';
 import {
   type CreateVisitBody,
   type UpdateVisitBody,
@@ -292,19 +292,12 @@ export async function updateVisitForUser(userId: string, visitId: string, input:
 
 export async function getVisitImageUploadUrl(userId: string, visitId: string, contentType: string) {
   const visit = await ensureVisitBelongsToUser(userId, visitId);
-  const user = await findUserById(userId);
-  if (!user) throw notFound();
-
-  const customer = visit.customer;
-  const pet = visit.pet;
+  const { customer, pet } = visit;
   if (!customer || !pet) throw notFound();
 
   const prefix = buildPetScopePrefix({
-    userLabel: user.email ?? user.name ?? null,
-    userId: user.id,
-    customerName: customer.name,
+    userId,
     customerId: customer.id,
-    petName: pet.name,
     petId: pet.id,
   });
 
@@ -335,6 +328,24 @@ export async function deleteVisitImage(userId: string, visitId: string, imageId:
   return serializeVisitImage(deleted);
 }
 
+async function validateVisitImageKey(
+  userId: string,
+  visit: NonNullable<Awaited<ReturnType<typeof findVisitWithCustomerById>>>,
+  key: string
+): Promise<boolean> {
+  const { customer, pet } = visit;
+  if (!customer || !pet) return false;
+
+  const prefix = buildPetScopePrefix({
+    userId,
+    customerId: customer.id,
+    petId: pet.id,
+  });
+
+  const expectedPrefix = `${prefix}/visits/${visit.id}/`;
+  return key.startsWith(expectedPrefix);
+}
+
 export async function addVisitImage(
   userId: string,
   visitId: string,
@@ -342,7 +353,17 @@ export async function addVisitImage(
   originalName?: string,
   contentType?: string
 ) {
-  await ensureVisitBelongsToUser(userId, visitId);
+  const visit = await ensureVisitBelongsToUser(userId, visitId);
+
+  // Validate that the key matches the expected pattern for this visit
+  const isValid = await validateVisitImageKey(userId, visit, key);
+  if (!isValid) {
+    throw badRequest({
+      message: 'Invalid storage key for this visit',
+      code: 'invalid_storage_key',
+    });
+  }
+
   const [image] = await createVisitImages([
     {
       visitId,

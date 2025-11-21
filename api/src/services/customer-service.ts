@@ -18,8 +18,8 @@ import {
   type PetInsert,
   type PetRecord,
 } from '../repositories/pet-repository.js';
-import { findUserById } from '../repositories/user-repository.js';
-import { notFound } from '../lib/app-error.js';
+
+import { badRequest, notFound } from '../lib/app-error.js';
 import {
   customerSchema,
   petSchema,
@@ -160,10 +160,27 @@ export async function createPetForCustomer(customerId: string, input: CreatePetB
   return serializePet(record);
 }
 
+async function validatePetImageKey(
+  userId: string,
+  customerId: string,
+  petId: string,
+  key: string
+): Promise<boolean> {
+  const prefix = buildPetScopePrefix({
+    userId,
+    customerId,
+    petId,
+  });
+
+  const expectedPrefix = `${prefix}/profile-`;
+  return key.startsWith(expectedPrefix);
+}
+
 export async function updatePetForCustomer(
   customerId: string,
   petId: string,
-  input: UpdatePetBody
+  input: UpdatePetBody,
+  userId: string
 ) {
   const record = await findPetByIdForCustomer(customerId, petId);
   if (!record) throw notFound();
@@ -181,6 +198,13 @@ export async function updatePetForCustomer(
       imageToDelete = record.imageUrl ?? null;
       updates.imageUrl = null;
     } else {
+      const isValid = await validatePetImageKey(userId, customerId, petId, input.imageUrl);
+      if (!isValid) {
+        throw badRequest({
+          message: 'Invalid storage key for this pet',
+          code: 'invalid_storage_key',
+        });
+      }
       imageToDelete =
         record.imageUrl && record.imageUrl !== input.imageUrl ? record.imageUrl : null;
       updates.imageUrl = input.imageUrl;
@@ -214,9 +238,6 @@ export async function getPetImageUploadUrl(
   petId: string,
   contentType: string
 ) {
-  const user = await findUserById(userId);
-  if (!user) throw notFound();
-
   const customer = await findCustomerByIdForUser(userId, customerId);
   if (!customer) throw notFound();
 
@@ -224,11 +245,8 @@ export async function getPetImageUploadUrl(
   if (!pet) throw notFound();
 
   const prefix = buildPetScopePrefix({
-    userLabel: user.email ?? user.name ?? null,
-    userId: user.id,
-    customerName: customer.name,
+    userId,
     customerId: customer.id,
-    petName: pet.name,
     petId: pet.id,
   });
   const key = `${prefix}/profile-${Date.now()}`;

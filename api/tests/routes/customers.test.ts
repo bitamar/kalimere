@@ -9,7 +9,7 @@ import type {
   CustomerResponse,
   CustomersListResponse,
   PetResponse,
-} from '../../src/schemas/customers.js';
+} from '@kalimere/types/customers';
 import { db } from '../../src/db/client.js';
 import { users } from '../../src/db/schema.js';
 import * as sessionModule from '../../src/auth/session.js';
@@ -258,10 +258,50 @@ describe('routes/customers', () => {
     const body = response.json() as { url: string; key: string };
     expect(body.url).toMatch(/^https?:\/\//);
     const [userSegment, customerSegment, petSegment, fileName] = body.key.split('/');
-    expect(userSegment).toContain(user.email.split('@')[0]?.toLowerCase());
-    expect(userSegment.endsWith(user.id)).toBe(true);
-    expect(customerSegment.endsWith(customer.id)).toBe(true);
-    expect(petSegment.endsWith(pet.id)).toBe(true);
+    expect(userSegment).toBe(user.id);
+    expect(customerSegment).toBe(customer.id);
+    expect(petSegment).toBe(pet.id);
     expect(fileName?.startsWith('profile-')).toBe(true);
+  });
+  it('rejects pet images with arbitrary S3 keys', async () => {
+    const { user, sessionId } = await createAuthedUser();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Rex', type: 'dog', gender: 'male' });
+
+    const response = await injectAuthed(app, sessionId, {
+      method: 'PUT',
+      url: `/customers/${customer.id}/pets/${pet.id}`,
+      payload: { imageUrl: 'arbitrary/other-user/file.jpg' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const error = response.json() as { error: string; message: string };
+    expect(error.error).toBe('invalid_storage_key');
+  });
+
+  it('rejects pet images with keys from different pets', async () => {
+    const { user, sessionId } = await createAuthedUser();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet1 = await seedPet(customer.id, { name: 'Rex', type: 'dog', gender: 'male' });
+    const pet2 = await seedPet(customer.id, { name: 'Buddy', type: 'dog', gender: 'male' });
+
+    // Get valid key for pet1
+    const uploadUrlResponse = await injectAuthed(app, sessionId, {
+      method: 'POST',
+      url: `/customers/${customer.id}/pets/${pet1.id}/image/upload-url`,
+      payload: { contentType: 'image/jpeg' },
+    });
+    const { key } = uploadUrlResponse.json() as { url: string; key: string };
+
+    // Try to use pet1's key for pet2
+    const response = await injectAuthed(app, sessionId, {
+      method: 'PUT',
+      url: `/customers/${customer.id}/pets/${pet2.id}`,
+      payload: { imageUrl: key },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const error = response.json() as { error: string; message: string };
+    expect(error.error).toBe('invalid_storage_key');
   });
 });

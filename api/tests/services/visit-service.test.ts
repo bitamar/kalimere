@@ -302,11 +302,9 @@ describe('visit-service', () => {
     expect(url).toBe(mockUrl);
     const [userSegment, customerSegment, petSegment, visitsSegment, visitSegment, fileName] =
       key.split('/');
-    expect(userSegment).toContain(user.email.split('@')[0]?.toLowerCase());
-    expect(userSegment.endsWith(user.id)).toBe(true);
-    expect(customerSegment.endsWith(customer.id)).toBe(true);
-    expect(petSegment.startsWith(pet.name.toLowerCase())).toBe(true);
-    expect(petSegment.endsWith(pet.id)).toBe(true);
+    expect(userSegment).toBe(user.id);
+    expect(customerSegment).toBe(customer.id);
+    expect(petSegment).toBe(pet.id);
     expect(visitsSegment).toBe('visits');
     expect(visitSegment).toBe(visit.id);
     expect(fileName?.length).toBeGreaterThan(10);
@@ -324,13 +322,11 @@ describe('visit-service', () => {
     });
 
     vi.spyOn(s3Service, 'getPresignedDownloadUrl').mockResolvedValue('https://download.example');
-    const ownerImage = await addVisitImage(
-      owner.id,
-      ownerVisit.id,
-      'owner/key',
-      'owner.png',
-      'image/png'
-    );
+
+    // Get valid key first
+    const { key } = await getVisitImageUploadUrl(owner.id, ownerVisit.id, 'image/png');
+
+    const ownerImage = await addVisitImage(owner.id, ownerVisit.id, key, 'owner.png', 'image/png');
 
     const { user: other } = await createTestUserWithSession();
     const otherCustomer = await seedCustomer(other.id, { name: 'Other' });

@@ -113,12 +113,9 @@ describe('customer-service', () => {
 
     expect(url).toBe(mockUrl);
     const [userSegment, customerSegment, petSegment, fileName] = key.split('/');
-    expect(userSegment).toContain(user.email.split('@')[0]?.toLowerCase());
-    expect(userSegment.endsWith(user.id)).toBe(true);
-    expect(customerSegment.startsWith('example-customer')).toBe(true);
-    expect(customerSegment.endsWith(customer.id)).toBe(true);
-    expect(petSegment.startsWith('luna')).toBe(true);
-    expect(petSegment.endsWith(pet.id)).toBe(true);
+    expect(userSegment).toBe(user.id);
+    expect(customerSegment).toBe(customer.id);
+    expect(petSegment).toBe(pet.id);
     expect(fileName?.startsWith('profile-')).toBe(true);
     expect(s3Service.getPresignedUploadUrl).toHaveBeenCalledWith(key, 'image/jpeg');
   });
@@ -137,12 +134,15 @@ describe('customer-service', () => {
       .spyOn(s3Service, 'getPresignedDownloadUrl')
       .mockResolvedValue('https://download.example.com/pet.jpg');
 
-    await updatePetForCustomer(customer.id, pet.id, { imageUrl: 'pet-image-key' });
+    // Get valid key first
+    const { key } = await getPetImageUploadUrl(user.id, customer.id, pet.id, 'image/jpeg');
+
+    await updatePetForCustomer(customer.id, pet.id, { imageUrl: key }, user.id);
     expect(downloadSpy).toHaveBeenCalled();
 
-    const cleared = await updatePetForCustomer(customer.id, pet.id, { imageUrl: null });
+    const cleared = await updatePetForCustomer(customer.id, pet.id, { imageUrl: null }, user.id);
 
-    expect(deleteSpy).toHaveBeenCalledWith('pet-image-key');
+    expect(deleteSpy).toHaveBeenCalledWith(key);
     expect(cleared.imageUrl).toBeNull();
 
     const persisted = await getPetForCustomer(customer.id, pet.id);

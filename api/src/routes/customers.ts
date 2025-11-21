@@ -181,8 +181,9 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (req) => {
+      ensureAuthed(req);
       const customerId = req.params.customerId;
-      const pet = await updatePetForCustomer(customerId, req.params.petId, req.body);
+      const pet = await updatePetForCustomer(customerId, req.params.petId, req.body, req.user.id);
       return { pet };
     }
   );

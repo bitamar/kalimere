@@ -7,34 +7,8 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../env.js';
 
-function slugifyLabel(label: string): string {
-  return label
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-{2,}/g, '-')
-    .toLowerCase()
-    .slice(0, 60);
-}
-
-export function formatS3Segment(label: string | null | undefined, id: string) {
-  const slug = typeof label === 'string' ? slugifyLabel(label) : '';
-  return slug ? `${slug}-${id}` : id;
-}
-
-export function buildPetScopePrefix(args: {
-  userLabel: string | null | undefined;
-  userId: string;
-  customerName: string | null | undefined;
-  customerId: string;
-  petName: string | null | undefined;
-  petId: string;
-}) {
-  const userSegment = formatS3Segment(args.userLabel, args.userId);
-  const customerSegment = formatS3Segment(args.customerName, args.customerId);
-  const petSegment = formatS3Segment(args.petName, args.petId);
-  return `${userSegment}/${customerSegment}/${petSegment}`;
+export function buildPetScopePrefix(args: { userId: string; customerId: string; petId: string }) {
+  return `${args.userId}/${args.customerId}/${args.petId}`;
 }
 
 export class S3Service {
@@ -42,11 +16,8 @@ export class S3Service {
   private bucketName: string;
 
   constructor() {
-    const region = env.AWS_REGION;
-    const bucketName = env.S3_BUCKET_NAME;
-
-    this.client = new S3Client({ region });
-    this.bucketName = bucketName;
+    this.client = new S3Client({ region: env.AWS_REGION });
+    this.bucketName = env.S3_BUCKET_NAME;
   }
 
   async getPresignedUploadUrl(key: string, contentType: string): Promise<string> {
