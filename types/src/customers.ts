@@ -78,7 +78,6 @@ export const createPetBodySchema = z
     breed: optionalNullableString,
     isSterilized: optionalNullableBoolean,
     isCastrated: optionalNullableBoolean,
-    imageUrl: optionalNullableString,
   })
   .strict();
 

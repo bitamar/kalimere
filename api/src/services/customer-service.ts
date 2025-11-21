@@ -241,13 +241,10 @@ export async function getPetImageUploadUrl(
   const customer = await findCustomerByIdForUser(userId, customerId);
   if (!customer) throw notFound();
 
-  const pet = await findPetByIdForCustomer(customer.id, petId);
-  if (!pet) throw notFound();
-
   const prefix = buildPetScopePrefix({
     userId,
     customerId: customer.id,
-    petId: pet.id,
+    petId,
   });
   const key = `${prefix}/profile-${Date.now()}`;
   const url = await s3Service.getPresignedUploadUrl(key, contentType);

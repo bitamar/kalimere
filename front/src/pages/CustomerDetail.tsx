@@ -516,7 +516,6 @@ export function CustomerDetail() {
         type: values.type,
         gender: values.gender,
         breed: values.breed,
-        imageUrl: values.imageUrl,
       });
     }
   }

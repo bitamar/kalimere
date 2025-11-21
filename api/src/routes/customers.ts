@@ -158,6 +158,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (req, reply) => {
+      ensureAuthed(req);
       const customerId = req.params.id;
       const pet = await createPetForCustomer(customerId, req.body);
       return reply.code(201).send({ pet });
