@@ -89,7 +89,6 @@ CREATE TABLE "visit_treatments" (
 CREATE TABLE "visits" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
         "pet_id" uuid NOT NULL,
-        "customer_id" uuid NOT NULL,
         "status" "visit_status" DEFAULT 'scheduled' NOT NULL,
         "scheduled_start_at" timestamp with time zone NOT NULL,
         "scheduled_end_at" timestamp with time zone,
@@ -118,7 +117,6 @@ ALTER TABLE "treatments" ADD CONSTRAINT "treatments_user_id_users_id_fk" FOREIGN
 ALTER TABLE "visit_treatments" ADD CONSTRAINT "visit_treatments_visit_id_visits_id_fk" FOREIGN KEY ("visit_id") REFERENCES "public"."visits"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "visit_treatments" ADD CONSTRAINT "visit_treatments_treatment_id_treatments_id_fk" FOREIGN KEY ("treatment_id") REFERENCES "public"."treatments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "visits" ADD CONSTRAINT "visits_pet_id_pets_id_fk" FOREIGN KEY ("pet_id") REFERENCES "public"."pets"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "visits" ADD CONSTRAINT "visits_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "visit_notes" ADD CONSTRAINT "visit_notes_visit_id_visits_id_fk" FOREIGN KEY ("visit_id") REFERENCES "public"."visits"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "appointment_pet_idx" ON "appointments" USING btree ("pet_id");--> statement-breakpoint
 CREATE INDEX "appointment_customer_idx" ON "appointments" USING btree ("customer_id");--> statement-breakpoint
@@ -131,5 +129,4 @@ CREATE INDEX "visit_treatment_visit_idx" ON "visit_treatments" USING btree ("vis
 CREATE INDEX "visit_treatment_treatment_idx" ON "visit_treatments" USING btree ("treatment_id");--> statement-breakpoint
 CREATE INDEX "visit_note_visit_idx" ON "visit_notes" USING btree ("visit_id");--> statement-breakpoint
 CREATE INDEX "visit_pet_idx" ON "visits" USING btree ("pet_id");--> statement-breakpoint
-CREATE INDEX "visit_customer_idx" ON "visits" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "visit_status_idx" ON "visits" USING btree ("status");
