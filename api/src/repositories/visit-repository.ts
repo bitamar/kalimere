@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, count, eq, gte, lte } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { customers, pets, visitImages, visitNotes, visitTreatments, visits } from '../db/schema.js';
 
@@ -112,4 +112,49 @@ export async function findVisitImageById(imageId: string) {
     .where(and(eq(visitImages.id, imageId), eq(visitImages.isDeleted, false)))
     .limit(1);
   return row ?? null;
+}
+
+export async function findUpcomingVisitsByUserId(userId: string, limit: number) {
+  const rows = await db
+    .select({ visit: visits, customer: customers, pet: pets })
+    .from(visits)
+    .innerJoin(customers, eq(customers.id, visits.customerId))
+    .innerJoin(pets, eq(pets.id, visits.petId))
+    .where(
+      and(
+        eq(customers.userId, userId),
+        eq(visits.isDeleted, false),
+        eq(visits.status, 'scheduled')
+      )
+    )
+    .orderBy(asc(visits.scheduledStartAt))
+    .limit(limit);
+
+  return rows.map((row) => ({
+    ...row.visit,
+    customer: row.customer,
+    pet: row.pet,
+  }));
+}
+
+export async function countVisitsByUserId(
+  userId: string,
+  range: { start: Date; end: Date }
+) {
+  const [row] = await db
+    .select({ count: count(visits.id) })
+    .from(visits)
+    .innerJoin(customers, eq(customers.id, visits.customerId))
+    .where(
+      and(
+        eq(customers.userId, userId),
+        eq(visits.isDeleted, false),
+        and(
+          gte(visits.scheduledStartAt, range.start),
+          lte(visits.scheduledStartAt, range.end)
+        )
+      )
+    );
+
+  return row?.count ?? 0;
 }

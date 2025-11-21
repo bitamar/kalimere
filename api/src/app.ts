@@ -16,6 +16,8 @@ import { inboundRoutes } from './routes/inbound.js';
 import { treatmentRoutes } from './routes/treatments.js';
 import { customerRoutes } from './routes/customers.js';
 import { visitRoutes } from './routes/visits.js';
+import { dashboardRoutes } from './routes/dashboard-routes.js';
+
 import { authPlugin } from './plugins/auth.js';
 import { errorPlugin } from './plugins/errors.js';
 import { loggingPlugin } from './plugins/logging.js';
@@ -84,6 +86,7 @@ export async function buildServer(options: FastifyServerOptions = {}) {
   await app.register(treatmentRoutes);
   await app.register(customerRoutes);
   await app.register(visitRoutes);
+  await app.register(dashboardRoutes, { prefix: '/api/dashboard' });
 
   app.get('/health', async () => ({ ok: true }));
 
