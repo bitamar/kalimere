@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
     "db:migrate:force": "drizzle-kit push --force"
   },
   "engines": {
