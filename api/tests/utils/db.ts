@@ -10,11 +10,13 @@ import {
   visitTreatments,
   visits,
   treatments,
+  visitImages,
 } from '../../src/db/schema.js';
 
 export async function resetDb() {
   await db.delete(visitTreatments);
   await db.delete(visitNotes);
+  await db.delete(visitImages);
   await db.delete(appointments);
   await db.delete(visits);
   await db.delete(pets);
@@ -55,14 +57,17 @@ export async function seedCustomer(userId: string, data: { name: string }) {
   return customer;
 }
 
-export async function seedPet(customerId: string, data: { name: string; type?: 'dog' | 'cat' }) {
+export async function seedPet(
+  customerId: string,
+  data: { name: string; type?: 'dog' | 'cat'; gender?: 'male' | 'female' }
+) {
   const [pet] = await db
     .insert(pets)
     .values({
       customerId,
       name: data.name,
       type: data.type ?? 'dog',
-      gender: 'male',
+      gender: data.gender ?? 'male',
     })
     .returning();
   return pet;

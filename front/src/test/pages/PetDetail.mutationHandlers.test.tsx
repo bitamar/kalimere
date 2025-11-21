@@ -27,6 +27,7 @@ const basePet: Pet = {
   breed: null,
   isSterilized: null,
   isCastrated: null,
+  imageUrl: null,
 };
 
 const customersList: Customer[] = [baseCustomer];

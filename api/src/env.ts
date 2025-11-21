@@ -20,6 +20,10 @@ const Env = z.object({
     .default('1 minute'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  AWS_REGION: z.string(),
+  AWS_ACCESS_KEY_ID: z.string(),
+  AWS_SECRET_ACCESS_KEY: z.string(),
+  S3_BUCKET_NAME: z.string(),
 });
 
 const parsed = Env.parse(process.env);

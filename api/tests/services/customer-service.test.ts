@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { resetDb } from '../utils/db.js';
 import { db } from '../../src/db/client.js';
@@ -10,10 +10,13 @@ import {
   deletePetForCustomer,
   getCustomerForUser,
   getPetForCustomer,
+  getPetImageUploadUrl,
   listCustomersForUser,
   listPetsForCustomer,
   updateCustomerForUser,
+  updatePetForCustomer,
 } from '../../src/services/customer-service.js';
+import { s3Service } from '../../src/services/s3.js';
 
 async function createUser() {
   const [user] = await db
@@ -25,11 +28,13 @@ async function createUser() {
 
 describe('customer-service', () => {
   beforeEach(async () => {
+    vi.restoreAllMocks();
     await resetDb();
   });
 
   afterEach(async () => {
     await resetDb();
+    vi.restoreAllMocks();
   });
 
   it('manages customers and pets for a user', async () => {
@@ -87,5 +92,60 @@ describe('customer-service', () => {
       'statusCode',
       404
     );
+  });
+
+  it('generates pet image upload keys under user/customer/pet scope', async () => {
+    const user = await createUser();
+    const customer = await createCustomerForUser(user.id, {
+      name: '  Example Customer  ',
+      email: 'example@example.com',
+    });
+    const pet = await createPetForCustomer(customer.id, {
+      name: 'Luna',
+      type: 'cat',
+      gender: 'female',
+    });
+
+    const mockUrl = 'https://s3-upload.example.com';
+    vi.spyOn(s3Service, 'getPresignedUploadUrl').mockResolvedValue(mockUrl);
+
+    const { key, url } = await getPetImageUploadUrl(user.id, customer.id, pet.id, 'image/jpeg');
+
+    expect(url).toBe(mockUrl);
+    const [userSegment, customerSegment, petSegment, fileName] = key.split('/');
+    expect(userSegment).toBe(user.id);
+    expect(customerSegment).toBe(customer.id);
+    expect(petSegment).toBe(pet.id);
+    expect(fileName?.startsWith('profile-')).toBe(true);
+    expect(s3Service.getPresignedUploadUrl).toHaveBeenCalledWith(key, 'image/jpeg');
+  });
+
+  it('deletes existing pet images when clearing the imageUrl', async () => {
+    const user = await createUser();
+    const customer = await createCustomerForUser(user.id, { name: 'Image Owner', email: null });
+    const pet = await createPetForCustomer(customer.id, {
+      name: 'Luna',
+      type: 'cat',
+      gender: 'female',
+    });
+
+    const deleteSpy = vi.spyOn(s3Service, 'deleteObject').mockResolvedValue();
+    const downloadSpy = vi
+      .spyOn(s3Service, 'getPresignedDownloadUrl')
+      .mockResolvedValue('https://download.example.com/pet.jpg');
+
+    // Get valid key first
+    const { key } = await getPetImageUploadUrl(user.id, customer.id, pet.id, 'image/jpeg');
+
+    await updatePetForCustomer(customer.id, pet.id, { imageUrl: key }, user.id);
+    expect(downloadSpy).toHaveBeenCalled();
+
+    const cleared = await updatePetForCustomer(customer.id, pet.id, { imageUrl: null }, user.id);
+
+    expect(deleteSpy).toHaveBeenCalledWith(key);
+    expect(cleared.imageUrl).toBeNull();
+
+    const persisted = await getPetForCustomer(customer.id, pet.id);
+    expect(persisted.imageUrl).toBeNull();
   });
 });

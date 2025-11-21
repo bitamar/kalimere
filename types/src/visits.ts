@@ -32,6 +32,15 @@ export const visitNoteSchema = z.object({
   updatedAt: isoDateTime,
 });
 
+export const visitImageSchema = z.object({
+  id: uuidSchema,
+  visitId: uuidSchema,
+  url: z.string().url(),
+  originalName: nullableString,
+  contentType: nullableString,
+  createdAt: isoDateTime,
+});
+
 export const visitSchema = z.object({
   id: uuidSchema,
   petId: uuidSchema,
@@ -49,6 +58,7 @@ export const visitSchema = z.object({
 export const visitWithDetailsSchema = visitSchema.extend({
   treatments: z.array(visitTreatmentSchema),
   notes: z.array(visitNoteSchema),
+  images: z.array(visitImageSchema),
 });
 
 export const visitResponseSchema = z.object({
@@ -125,6 +135,7 @@ export const visitParamsSchema = z.object({
 export type VisitStatus = z.infer<typeof visitStatusSchema>;
 export type VisitTreatment = z.infer<typeof visitTreatmentSchema>;
 export type VisitNote = z.infer<typeof visitNoteSchema>;
+export type VisitImage = z.infer<typeof visitImageSchema>;
 export type Visit = z.infer<typeof visitSchema>;
 export type VisitWithDetails = z.infer<typeof visitWithDetailsSchema>;
 export type VisitResponse = z.infer<typeof visitResponseSchema>;
@@ -134,3 +145,11 @@ export type CreateVisitBody = z.infer<typeof createVisitBodySchema>;
 export type UpdateVisitParams = z.infer<typeof updateVisitParamsSchema>;
 export type UpdateVisitBody = z.infer<typeof updateVisitBodySchema>;
 export type VisitParams = z.infer<typeof visitParamsSchema>;
+
+export const createVisitImageBodySchema = z.object({
+  key: nonEmptyString,
+  originalName: optionalNullableString,
+  contentType: optionalNullableString,
+});
+
+export type CreateVisitImageBody = z.infer<typeof createVisitImageBodySchema>;

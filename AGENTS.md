@@ -10,3 +10,20 @@
   - `npm run lint --prefix api`
   - `npm run type-check --prefix api`
 - Include the results of these commands in the final report.
+
+
+## Coding Standards
+
+- **No Legacy Assumptions**: Treat the codebase as modern and clean. Do not introduce optional parameters or defensive coding for "legacy" support unless explicitly required.
+- **Type Safety**: Avoid non-null assertions (`!`). Always use explicit null checks and type narrowing.
+- **Clean Code**: Prefer destructuring assignment for object properties (e.g., `const { customer, pet } = visit;`) instead of individual assignments.
+
+## Component Design Principles
+
+### Simplicity Through Encapsulation
+
+**Components should be as simple as they possibly can be.** Pass entire objects instead of individual properties, own your styling decisions with variants instead of exposing style props, and make components impossible to use wrong.
+
+**Examples**:
+- ❌ `<PetImage petType={pet.type} imageUrl={pet.imageUrl} w={64} h={64} radius="xl" />`
+- ✅ `<PetImage pet={pet} variant="avatar" />`

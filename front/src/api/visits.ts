@@ -74,3 +74,32 @@ export async function updateVisit(
   const result = visitWithDetailsResponseSchema.parse(json);
   return result.visit;
 }
+
+export async function getVisitImageUploadUrl(
+  visitId: string,
+  contentType: string
+): Promise<{ url: string; key: string }> {
+  const json = await fetchJson<unknown>(`/visits/${visitId}/images/upload-url`, {
+    method: 'POST',
+    body: JSON.stringify({ contentType }),
+  });
+  return json as { url: string; key: string };
+}
+
+export async function addVisitImage(
+  visitId: string,
+  key: string,
+  originalName?: string,
+  contentType?: string
+): Promise<void> {
+  await fetchJson(`/visits/${visitId}/images`, {
+    method: 'POST',
+    body: JSON.stringify({ key, originalName, contentType }),
+  });
+}
+
+export async function deleteVisitImage(visitId: string, imageId: string): Promise<void> {
+  await fetchJson(`/visits/${visitId}/images/${imageId}`, {
+    method: 'DELETE',
+  });
+}

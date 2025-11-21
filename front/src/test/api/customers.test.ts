@@ -36,6 +36,7 @@ const pet = {
   breed: null,
   isSterilized: null,
   isCastrated: null,
+  imageUrl: null,
 };
 
 describe('customers api', () => {

@@ -25,5 +25,6 @@ export function applyPetUpdates(pet: Pet, payload: UpdatePetBody): Pet {
     breed: payload.breed !== undefined ? payload.breed : pet.breed,
     isSterilized: payload.isSterilized !== undefined ? payload.isSterilized : pet.isSterilized,
     isCastrated: payload.isCastrated !== undefined ? payload.isCastrated : pet.isCastrated,
+    imageUrl: payload.imageUrl !== undefined ? payload.imageUrl : pet.imageUrl,
   };
 }

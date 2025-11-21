@@ -3,6 +3,7 @@ import { updatePet, type Pet, type UpdatePetBody } from '../api/customers';
 import { useApiMutation } from '../lib/useApiMutation';
 import { queryKeys } from '../lib/queryKeys';
 import { applyPetUpdates } from '../utils/entityUpdates';
+import { showSuccessNotification } from '../lib/notifications';
 
 export type UpdatePetVariables = {
   petId: string;
@@ -24,16 +25,20 @@ type UsePetUpdateMutationParams = {
   ) => void;
 };
 
+function isImageOnlyUpdate(payload: UpdatePetBody) {
+  return (
+    payload.imageUrl !== undefined &&
+    Object.entries(payload).every(([key, value]) => key === 'imageUrl' || value === undefined)
+  );
+}
+
 export function usePetUpdateMutation({
   customerId,
   petDetailQueryKey,
   onSuccess,
 }: UsePetUpdateMutationParams) {
   const queryClient = useQueryClient();
-  const hasCustomerId = Boolean(customerId);
-  const petsQueryKey = hasCustomerId
-    ? queryKeys.pets(customerId as string)
-    : (['pets', ''] as const);
+  const petsQueryKey = queryKeys.pets(customerId ?? '');
 
   return useApiMutation<Pet | undefined, unknown, UpdatePetVariables, UpdatePetContext>({
     mutationFn: ({ petId, payload }) => {
@@ -42,30 +47,28 @@ export function usePetUpdateMutation({
       }
       return updatePet(customerId, petId, payload);
     },
-    successToast: { message: 'חיית המחמד עודכנה בהצלחה' },
+    successToast: false,
     errorToast: { fallbackMessage: 'עדכון חיית המחמד נכשל' },
     onMutate: async ({ petId, payload }) => {
-      if (!customerId) {
-        return { previousPets: [] as Pet[], previousPetDetail: undefined };
-      }
+      if (!customerId) return { previousPets: [] as Pet[], previousPetDetail: undefined };
+
       await queryClient.cancelQueries({ queryKey: petsQueryKey });
-      if (petDetailQueryKey) {
-        await queryClient.cancelQueries({ queryKey: petDetailQueryKey });
-      }
+      if (petDetailQueryKey) await queryClient.cancelQueries({ queryKey: petDetailQueryKey });
+
       const previousPets = queryClient.getQueryData<Pet[]>(petsQueryKey) ?? [];
+      const previousPetDetail = petDetailQueryKey
+        ? queryClient.getQueryData<Pet | undefined>(petDetailQueryKey)
+        : undefined;
+
       queryClient.setQueryData<Pet[]>(petsQueryKey, (old = []) =>
         old.map((pet) => (pet.id === petId ? applyPetUpdates(pet, payload) : pet))
       );
 
-      let previousPetDetail: Pet | undefined;
-      if (petDetailQueryKey) {
-        previousPetDetail = queryClient.getQueryData<Pet | undefined>(petDetailQueryKey);
-        if (previousPetDetail) {
-          queryClient.setQueryData<Pet>(
-            petDetailQueryKey,
-            applyPetUpdates(previousPetDetail, payload)
-          );
-        }
+      if (petDetailQueryKey && previousPetDetail) {
+        queryClient.setQueryData<Pet>(
+          petDetailQueryKey,
+          applyPetUpdates(previousPetDetail, payload)
+        );
       }
 
       return { previousPets, previousPetDetail };
@@ -77,28 +80,26 @@ export function usePetUpdateMutation({
       }
     },
     onSuccess: (data, variables, context) => {
-      if (!variables) {
-        onSuccess?.(data, variables as UpdatePetVariables, context);
-        return;
-      }
       const { petId, payload } = variables;
+      const targetId = data?.id ?? petId;
       queryClient.setQueryData<Pet[]>(petsQueryKey, (old = []) =>
-        old.map((pet) =>
-          pet.id === (data?.id ?? petId) ? (data ?? applyPetUpdates(pet, payload)) : pet
-        )
+        old.map((pet) => (pet.id === targetId ? (data ?? applyPetUpdates(pet, payload)) : pet))
       );
 
       if (petDetailQueryKey) {
-        queryClient.setQueryData<Pet | undefined>(
-          petDetailQueryKey,
-          (old) => data ?? (old ? applyPetUpdates(old, payload) : old)
+        queryClient.setQueryData<Pet | undefined>(petDetailQueryKey, (old) =>
+          old && old.id !== targetId ? old : (data ?? (old ? applyPetUpdates(old, payload) : old))
         );
       }
+
+      if (!isImageOnlyUpdate(payload)) showSuccessNotification('חיית המחמד עודכנה בהצלחה');
 
       onSuccess?.(data, variables, context);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: petsQueryKey });
+      if (customerId) {
+        void queryClient.invalidateQueries({ queryKey: petsQueryKey });
+      }
       if (petDetailQueryKey) {
         void queryClient.invalidateQueries({ queryKey: petDetailQueryKey });
       }

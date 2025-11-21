@@ -19,6 +19,7 @@ import {
   getPet,
   deletePet,
   getCustomer,
+  getPetImageUploadUrl,
   type Customer,
   type Pet,
   type UpdatePetBody,
@@ -37,6 +38,7 @@ import {
 } from '../components/PetFormModal';
 import { VisitFormModal, type VisitFormSubmitValues } from '../components/VisitFormModal';
 import { usePetUpdateMutation } from '../hooks/usePetUpdateMutation';
+import { PetImage } from '../components/PetImage';
 
 export function PetDetail() {
   const { customerId, petId } = useParams<{ customerId: string; petId: string }>();
@@ -155,9 +157,6 @@ export function PetDetail() {
   const updatePetMutation = usePetUpdateMutation({
     customerId,
     petDetailQueryKey: petQueryKey,
-    onSuccess: () => {
-      closePetForm();
-    },
   });
 
   const scheduleVisitMutation = useApiMutation({
@@ -181,7 +180,11 @@ export function PetDetail() {
       gender: values.gender,
       breed: values.breed,
     };
+    if (values.imageUrl !== undefined) {
+      payload.imageUrl = values.imageUrl;
+    }
     await updatePetMutation.mutateAsync({ petId, payload });
+    closePetForm();
   }
 
   async function onScheduleVisit(values: VisitFormSubmitValues) {
@@ -195,6 +198,21 @@ export function PetDetail() {
     };
     await scheduleVisitMutation.mutateAsync(payload);
   }
+
+  const handleUploadUrlRequest = async (file: File) => {
+    if (!customerId || !petId) throw new Error('Missing IDs');
+    return getPetImageUploadUrl(customerId, petId, file.type);
+  };
+
+  const handleUploadComplete = async (key: string) => {
+    if (!customerId || !petId) return;
+    await updatePetMutation.mutateAsync({ petId, payload: { imageUrl: key } });
+  };
+
+  const handleRemoveImage = async () => {
+    if (!customerId || !petId) return;
+    await updatePetMutation.mutateAsync({ petId, payload: { imageUrl: null } });
+  };
 
   const loading = petQuery.isPending || customerQuery.isPending;
   const petError = petQuery.error;
@@ -320,6 +338,7 @@ export function PetDetail() {
       type: ensuredPet.type,
       gender: ensuredPet.gender,
       breed: ensuredPet.breed ?? '',
+      imageUrl: ensuredPet.imageUrl ?? null,
     });
     setPetFormOpen(true);
   }
@@ -383,6 +402,8 @@ export function PetDetail() {
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
+
+        <PetImage pet={ensuredPet} variant="avatar" />
 
         <PageTitle order={2}>{ensuredPet.name}</PageTitle>
         <Badge variant="light" size="lg" color={ensuredPet.type === 'dog' ? 'teal' : 'grape'}>
@@ -496,6 +517,9 @@ export function PetDetail() {
         submitLoading={petMutationInFlight}
         initialValues={petFormInitialValues}
         onSubmit={onSubmitPet}
+        onUploadUrlRequest={handleUploadUrlRequest}
+        onUploadComplete={handleUploadComplete}
+        onRemoveImage={handleRemoveImage}
       />
 
       <Modal

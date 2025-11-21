@@ -8,6 +8,12 @@ export const nullableString = z.union([nonEmptyString, z.literal(null)]);
 
 export const optionalNullableString = nullableString.optional();
 
+export const uploadUrlResponseSchema = z.object({
+  url: z.string().url(),
+  key: z.string(),
+  uuid: z.string().optional(),
+});
+
 export const nullableEmail = z.union([z.string().trim().email(), z.literal(null)]);
 
 export const optionalNullableEmail = nullableEmail.optional();

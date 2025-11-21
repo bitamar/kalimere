@@ -18,7 +18,8 @@ import {
   type PetInsert,
   type PetRecord,
 } from '../repositories/pet-repository.js';
-import { notFound } from '../lib/app-error.js';
+
+import { badRequest, notFound } from '../lib/app-error.js';
 import {
   customerSchema,
   petSchema,
@@ -27,6 +28,8 @@ import {
   type CreatePetBody,
   type UpdatePetBody,
 } from '@kalimere/types/customers';
+
+import { buildPetScopePrefix, s3Service } from './s3.js';
 
 type CustomerDto = z.infer<typeof customerSchema>;
 type PetDto = z.infer<typeof petSchema>;
@@ -56,7 +59,12 @@ function normalizeDate(value: Date | string | null | undefined): string | null {
   return value;
 }
 
-function serializePet(record: PetRecord): PetDto {
+async function serializePet(record: PetRecord): Promise<PetDto> {
+  let imageUrl: string | null = null;
+  if (record.imageUrl) {
+    imageUrl = await s3Service.getPresignedDownloadUrl(record.imageUrl);
+  }
+
   return {
     id: record.id,
     customerId: record.customerId,
@@ -67,6 +75,7 @@ function serializePet(record: PetRecord): PetDto {
     breed: cleanNullableString(record.breed),
     isSterilized: record.isSterilized ?? null,
     isCastrated: record.isCastrated ?? null,
+    imageUrl,
   };
 }
 
@@ -120,7 +129,7 @@ export async function deleteCustomerForUser(userId: string, customerId: string) 
 
 export async function listPetsForCustomer(customerId: string) {
   const records = await findActivePetsByCustomerId(customerId);
-  return records.map((record) => serializePet(record));
+  return Promise.all(records.map((record) => serializePet(record)));
 }
 
 export async function getPetForCustomer(customerId: string, petId: string) {
@@ -151,21 +160,56 @@ export async function createPetForCustomer(customerId: string, input: CreatePetB
   return serializePet(record);
 }
 
+async function validatePetImageKey(
+  userId: string,
+  customerId: string,
+  petId: string,
+  key: string
+): Promise<boolean> {
+  const prefix = buildPetScopePrefix({
+    userId,
+    customerId,
+    petId,
+  });
+
+  const expectedPrefix = `${prefix}/profile-`;
+  return key.startsWith(expectedPrefix);
+}
+
 export async function updatePetForCustomer(
   customerId: string,
   petId: string,
-  input: UpdatePetBody
+  input: UpdatePetBody,
+  userId: string
 ) {
   const record = await findPetByIdForCustomer(customerId, petId);
   if (!record) throw notFound();
 
   const updates: Partial<PetInsert> = { updatedAt: new Date() };
+  let imageToDelete: string | null = null;
   if (input.name !== undefined) updates.name = input.name;
   if (input.type !== undefined) updates.type = input.type;
   if (input.gender !== undefined) updates.gender = input.gender;
   if (input.breed !== undefined) updates.breed = input.breed ?? null;
   if (input.isSterilized !== undefined) updates.isSterilized = input.isSterilized ?? null;
   if (input.isCastrated !== undefined) updates.isCastrated = input.isCastrated ?? null;
+  if (input.imageUrl !== undefined) {
+    if (input.imageUrl === null) {
+      imageToDelete = record.imageUrl ?? null;
+      updates.imageUrl = null;
+    } else {
+      const isValid = await validatePetImageKey(userId, customerId, petId, input.imageUrl);
+      if (!isValid) {
+        throw badRequest({
+          message: 'Invalid storage key for this pet',
+          code: 'invalid_storage_key',
+        });
+      }
+      imageToDelete =
+        record.imageUrl && record.imageUrl !== input.imageUrl ? record.imageUrl : null;
+      updates.imageUrl = input.imageUrl;
+    }
+  }
   if (input.dateOfBirth !== undefined) {
     updates.dateOfBirth =
       typeof input.dateOfBirth === 'string' ? new Date(input.dateOfBirth) : null;
@@ -173,6 +217,11 @@ export async function updatePetForCustomer(
 
   const updated = await updatePetById(petId, updates);
   if (!updated) throw new Error('Failed to update pet');
+
+  if (imageToDelete) {
+    await s3Service.deleteObject(imageToDelete);
+  }
+
   return serializePet(updated);
 }
 
@@ -181,4 +230,23 @@ export async function deletePetForCustomer(customerId: string, petId: string) {
   if (!record) throw notFound();
   await softDeletePetById(petId);
   return { ok: true } as const;
+}
+
+export async function getPetImageUploadUrl(
+  userId: string,
+  customerId: string,
+  petId: string,
+  contentType: string
+) {
+  const customer = await findCustomerByIdForUser(userId, customerId);
+  if (!customer) throw notFound();
+
+  const prefix = buildPetScopePrefix({
+    userId,
+    customerId: customer.id,
+    petId,
+  });
+  const key = `${prefix}/profile-${Date.now()}`;
+  const url = await s3Service.getPresignedUploadUrl(key, contentType);
+  return { url, key };
 }

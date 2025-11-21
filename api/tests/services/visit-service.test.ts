@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import {
   createTestUserWithSession,
@@ -10,11 +10,15 @@ import {
 import {
   createVisitForUser,
   getVisitForUser,
+  getVisitImageUploadUrl,
   listVisitsForPet,
   updateVisitForUser,
+  addVisitImage,
+  deleteVisitImage,
 } from '../../src/services/visit-service.js';
 import { db } from '../../src/db/client.js';
-import { visitNotes, visitTreatments } from '../../src/db/schema.js';
+import { visitImages, visitNotes, visitTreatments } from '../../src/db/schema.js';
+import { s3Service } from '../../src/services/s3.js';
 
 async function createUserWithRecords() {
   const { user } = await createTestUserWithSession();
@@ -26,11 +30,13 @@ async function createUserWithRecords() {
 
 describe('visit-service', () => {
   beforeEach(async () => {
+    vi.restoreAllMocks();
     await resetDb();
   });
 
   afterEach(async () => {
     await resetDb();
+    vi.restoreAllMocks();
   });
 
   it('creates a visit with normalized fields and related records', async () => {
@@ -278,5 +284,71 @@ describe('visit-service', () => {
         ],
       })
     ).rejects.toHaveProperty('statusCode', 404);
+  });
+
+  it('scopes visit image upload keys under user/customer/pet visits folder', async () => {
+    const { user, customer, pet } = await createUserWithRecords();
+    const visit = await createVisitForUser(user.id, {
+      customerId: customer.id,
+      petId: pet.id,
+      scheduledStartAt: '2026-01-01T10:00:00.000Z',
+    });
+
+    const mockUrl = 'https://s3-upload.example.com/visit';
+    vi.spyOn(s3Service, 'getPresignedUploadUrl').mockResolvedValue(mockUrl);
+
+    const { key, url } = await getVisitImageUploadUrl(user.id, visit.id, 'image/png');
+
+    expect(url).toBe(mockUrl);
+    const [userSegment, customerSegment, petSegment, visitsSegment, visitSegment, fileName] =
+      key.split('/');
+    expect(userSegment).toBe(user.id);
+    expect(customerSegment).toBe(customer.id);
+    expect(petSegment).toBe(pet.id);
+    expect(visitsSegment).toBe('visits');
+    expect(visitSegment).toBe(visit.id);
+    expect(fileName?.length).toBeGreaterThan(10);
+    expect(s3Service.getPresignedUploadUrl).toHaveBeenCalledWith(key, 'image/png');
+  });
+
+  it('rejects deleting visit images that do not belong to the visit', async () => {
+    const { user: owner } = await createTestUserWithSession();
+    const ownerCustomer = await seedCustomer(owner.id, { name: 'Owner' });
+    const ownerPet = await seedPet(ownerCustomer.id, { name: 'Fido', type: 'dog' });
+    const ownerVisit = await createVisitForUser(owner.id, {
+      customerId: ownerCustomer.id,
+      petId: ownerPet.id,
+      scheduledStartAt: '2026-02-01T10:00:00.000Z',
+    });
+
+    vi.spyOn(s3Service, 'getPresignedDownloadUrl').mockResolvedValue('https://download.example');
+
+    // Get valid key first
+    const { key } = await getVisitImageUploadUrl(owner.id, ownerVisit.id, 'image/png');
+
+    const ownerImage = await addVisitImage(owner.id, ownerVisit.id, key, 'owner.png', 'image/png');
+
+    const { user: other } = await createTestUserWithSession();
+    const otherCustomer = await seedCustomer(other.id, { name: 'Other' });
+    const otherPet = await seedPet(otherCustomer.id, { name: 'Buddy', type: 'cat' });
+    const otherVisit = await createVisitForUser(other.id, {
+      customerId: otherCustomer.id,
+      petId: otherPet.id,
+      scheduledStartAt: '2026-03-01T10:00:00.000Z',
+    });
+
+    const deleteSpy = vi.spyOn(s3Service, 'deleteObject').mockResolvedValue(undefined);
+    await expect(deleteVisitImage(other.id, otherVisit.id, ownerImage.id)).rejects.toHaveProperty(
+      'statusCode',
+      404
+    );
+    expect(deleteSpy).not.toHaveBeenCalled();
+
+    const [imageRow] = await db
+      .select()
+      .from(visitImages)
+      .where(eq(visitImages.id, ownerImage.id))
+      .limit(1);
+    expect(imageRow?.isDeleted).toBe(false);
   });
 });

@@ -14,6 +14,10 @@ process.env.TWILIO_WHATSAPP_FROM = 'whatsapp:+19000000000';
 process.env.URL = 'http://localhost:3000';
 process.env.RATE_LIMIT_MAX = '100';
 process.env.RATE_LIMIT_TIME_WINDOW = '1000';
+process.env.AWS_REGION = 'us-east-1';
+process.env.AWS_ACCESS_KEY_ID = 'test-access-key';
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret-key';
+process.env.S3_BUCKET_NAME = 'test-bucket';
 
 // Avoid hitting the real Google OIDC discovery endpoint during tests.
 vi.mock('openid-client', () => {

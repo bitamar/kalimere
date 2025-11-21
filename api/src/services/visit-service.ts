@@ -1,8 +1,11 @@
 import {
   createVisit,
+  createVisitImages,
   createVisitNotes,
   createVisitTreatments,
+  deleteVisitImage as deleteVisitImageRepo,
   findActiveVisitsByPetId,
+  findVisitImageById,
   findVisitWithCustomerById,
   findVisitWithDetailsById,
   updateVisitById,
@@ -10,11 +13,13 @@ import {
   type VisitRecord,
   type VisitTreatmentRecord,
   type VisitNoteRecord,
+  type VisitImageRecord,
 } from '../repositories/visit-repository.js';
+
 import { findCustomerByIdForUser } from '../repositories/customer-repository.js';
 import { findPetByIdForCustomer } from '../repositories/pet-repository.js';
 import { findTreatmentByIdForUser } from '../repositories/treatment-repository.js';
-import { notFound } from '../lib/app-error.js';
+import { badRequest, notFound } from '../lib/app-error.js';
 import {
   type CreateVisitBody,
   type UpdateVisitBody,
@@ -22,7 +27,9 @@ import {
   type VisitWithDetails,
   type VisitTreatment,
   type VisitNote,
+  type VisitImage,
 } from '@kalimere/types/visits';
+import { buildPetScopePrefix, s3Service } from './s3.js';
 
 function cleanNullableString(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null;
@@ -95,14 +102,27 @@ function serializeVisitNote(record: VisitNoteRecord): VisitNote {
   };
 }
 
-function serializeVisitWithDetails(
+async function serializeVisitImage(record: VisitImageRecord): Promise<VisitImage> {
+  return {
+    id: record.id,
+    visitId: record.visitId,
+    url: await s3Service.getPresignedDownloadUrl(record.storageKey),
+    originalName: record.originalName,
+    contentType: record.contentType,
+    createdAt: toIsoString(record.createdAt),
+  };
+}
+
+async function serializeVisitWithDetails(
   record: NonNullable<Awaited<ReturnType<typeof findVisitWithDetailsById>>>
-): VisitWithDetails {
+): Promise<VisitWithDetails> {
   const base = serializeVisit(record);
+  const images = await Promise.all(record.images.map((img) => serializeVisitImage(img)));
   return {
     ...base,
     treatments: record.visitTreatments.map((item) => serializeVisitTreatment(item)),
     notes: record.notes.map((item) => serializeVisitNote(item)),
+    images,
   };
 }
 
@@ -201,7 +221,7 @@ export async function createVisitForUser(userId: string, input: CreateVisitBody)
 
 async function ensureVisitBelongsToUser(userId: string, visitId: string) {
   const visit = await findVisitWithCustomerById(visitId);
-  if (!visit || !visit.customer || visit.customer.userId !== userId) {
+  if (!visit || !visit.customer || visit.customer.userId !== userId || !visit.pet) {
     throw notFound();
   }
   return visit;
@@ -268,4 +288,90 @@ export async function updateVisitForUser(userId: string, visitId: string, input:
   const record = await findVisitWithDetailsById(visitId);
   if (!record) throw notFound();
   return serializeVisitWithDetails(record);
+}
+
+export async function getVisitImageUploadUrl(userId: string, visitId: string, contentType: string) {
+  const visit = await ensureVisitBelongsToUser(userId, visitId);
+  const { customer, pet } = visit;
+  if (!customer || !pet) throw notFound();
+
+  const prefix = buildPetScopePrefix({
+    userId,
+    customerId: customer.id,
+    petId: pet.id,
+  });
+
+  const uuid = crypto.randomUUID();
+  const key = `${prefix}/visits/${visit.id}/${uuid}`;
+  const url = await s3Service.getPresignedUploadUrl(key, contentType);
+  return { url, key, uuid };
+}
+
+export async function deleteVisitImage(userId: string, visitId: string, imageId: string) {
+  await ensureVisitBelongsToUser(userId, visitId);
+
+  const image = await findVisitImageById(imageId);
+  if (!image || image.visitId !== visitId) {
+    throw notFound();
+  }
+
+  // Delete from S3 first
+  try {
+    await s3Service.deleteObject(image.storageKey);
+  } catch (error) {
+    console.error(`Failed to delete object from S3: ${image.storageKey}`, error);
+    // We continue with soft delete even if S3 delete fails, to keep DB consistent
+  }
+
+  const deleted = await deleteVisitImageRepo(imageId);
+  if (!deleted) throw new Error('Failed to delete visit image');
+  return serializeVisitImage(deleted);
+}
+
+async function validateVisitImageKey(
+  userId: string,
+  visit: NonNullable<Awaited<ReturnType<typeof findVisitWithCustomerById>>>,
+  key: string
+): Promise<boolean> {
+  const { customer, pet } = visit;
+  if (!customer || !pet) return false;
+
+  const prefix = buildPetScopePrefix({
+    userId,
+    customerId: customer.id,
+    petId: pet.id,
+  });
+
+  const expectedPrefix = `${prefix}/visits/${visit.id}/`;
+  return key.startsWith(expectedPrefix);
+}
+
+export async function addVisitImage(
+  userId: string,
+  visitId: string,
+  key: string,
+  originalName?: string,
+  contentType?: string
+) {
+  const visit = await ensureVisitBelongsToUser(userId, visitId);
+
+  // Validate that the key matches the expected pattern for this visit
+  const isValid = await validateVisitImageKey(userId, visit, key);
+  if (!isValid) {
+    throw badRequest({
+      message: 'Invalid storage key for this visit',
+      code: 'invalid_storage_key',
+    });
+  }
+
+  const [image] = await createVisitImages([
+    {
+      visitId,
+      storageKey: key,
+      originalName,
+      contentType,
+    },
+  ]);
+  if (!image) throw new Error('Failed to create visit image');
+  return serializeVisitImage(image);
 }

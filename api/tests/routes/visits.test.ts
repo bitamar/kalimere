@@ -9,8 +9,10 @@ import {
   seedTreatment,
 } from '../utils/db.js';
 import { injectAuthed } from '../utils/inject.js';
+import { s3Service } from '../../src/services/s3.js';
 import type {
   VisitResponse,
+  VisitImage,
   VisitWithDetailsResponse,
   VisitsListResponse,
 } from '@kalimere/types/visits';
@@ -165,5 +167,203 @@ describe('routes/visits', () => {
       payload: { status: 'cancelled' },
     });
     expect(updateResponse.statusCode).toBe(404);
+  });
+
+  it('generates presigned upload URLs and creates visit image records', async () => {
+    const { user, session } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Buddy', type: 'dog' });
+
+    const createResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: '/visits',
+      payload: {
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: '2025-10-15T10:00:00.000Z',
+      },
+    });
+
+    const visitId = (createResponse.json() as VisitResponse).visit.id;
+
+    // Test upload URL generation
+    const uploadUrlResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visitId}/images/upload-url`,
+      payload: { contentType: 'image/png', originalName: 'test.png' },
+    });
+
+    expect(uploadUrlResponse.statusCode).toBe(200);
+    const uploadBody = uploadUrlResponse.json() as { url: string; key: string };
+    expect(uploadBody.url).toMatch(/^https?:\/\//);
+    const [userSegment, customerSegment, petSegment, visitsSegment, visitSegment, fileName] =
+      uploadBody.key.split('/');
+    expect(userSegment).toBe(user.id);
+    expect(customerSegment).toBe(customer.id);
+    expect(petSegment).toBe(pet.id);
+    expect(visitsSegment).toBe('visits');
+    expect(visitSegment).toBe(visitId);
+    expect(fileName?.length).toBeGreaterThan(10);
+
+    // Test image record creation
+    const imageResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visitId}/images`,
+      payload: { key: uploadBody.key, originalName: 'test.png', contentType: 'image/png' },
+    });
+
+    expect(imageResponse.statusCode).toBe(200);
+    const createdImage = imageResponse.json() as VisitImage;
+    expect(createdImage).toMatchObject({
+      visitId,
+      originalName: 'test.png',
+      contentType: 'image/png',
+    });
+    expect(createdImage.id).toBeTruthy();
+    expect(createdImage.url).toMatch(/^https?:\/\//);
+
+    // Verify image appears in visit details
+    const detailsResponse = await injectAuthed(app, session.id, {
+      method: 'GET',
+      url: `/visits/${visitId}`,
+    });
+
+    const detailsResult = getJson<VisitWithDetailsResponse>(detailsResponse);
+    expect(detailsResult.body.visit.images).toHaveLength(1);
+    expect(detailsResult.body.visit.images[0]).toMatchObject({
+      originalName: 'test.png',
+      contentType: 'image/png',
+    });
+    expect(detailsResult.body.visit.images[0].url).toMatch(/^https?:\/\//);
+  });
+
+  it('allows deleting a visit image', async () => {
+    const { user, session } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Buddy', type: 'dog' });
+
+    const createResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: '/visits',
+      payload: {
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: '2025-10-15T10:00:00.000Z',
+      },
+    });
+
+    const visitId = (createResponse.json() as VisitResponse).visit.id;
+
+    // Get valid upload URL first to have a valid key
+    const uploadUrlResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visitId}/images/upload-url`,
+      payload: { contentType: 'image/png' },
+    });
+    const { key } = uploadUrlResponse.json() as { url: string; key: string };
+
+    const imageResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visitId}/images`,
+      payload: { key, originalName: 'test.png', contentType: 'image/png' },
+    });
+    const createdImage = imageResponse.json() as VisitImage;
+
+    const deleteSpy = vi.spyOn(s3Service, 'deleteObject').mockResolvedValue(undefined);
+    const deleteResponse = await injectAuthed(app, session.id, {
+      method: 'DELETE',
+      url: `/visits/${visitId}/images/${createdImage.id}`,
+    });
+    expect(deleteResponse.statusCode).toBe(200);
+
+    expect(deleteSpy).toHaveBeenCalledWith(key);
+
+    const detailsResponse = await injectAuthed(app, session.id, {
+      method: 'GET',
+      url: `/visits/${visitId}`,
+    });
+    const detailsResult = getJson<VisitWithDetailsResponse>(detailsResponse);
+    expect(detailsResult.body.visit.images).toHaveLength(0);
+  });
+
+  it('rejects visit images with arbitrary S3 keys', async () => {
+    const { user, session } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Buddy', type: 'dog' });
+
+    const createResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: '/visits',
+      payload: {
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: '2025-10-15T10:00:00.000Z',
+      },
+    });
+
+    const visitId = (createResponse.json() as VisitResponse).visit.id;
+
+    // Try to create image with arbitrary key
+    const imageResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visitId}/images`,
+      payload: {
+        key: 'arbitrary/other-user/file.jpg',
+        originalName: 'test.png',
+        contentType: 'image/png',
+      },
+    });
+
+    expect(imageResponse.statusCode).toBe(400);
+    const error = imageResponse.json() as { error: string; message: string };
+    expect(error.error).toBe('invalid_storage_key');
+  });
+
+  it('rejects visit images with keys from different visits', async () => {
+    const { user, session } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Owner' });
+    const pet = await seedPet(customer.id, { name: 'Buddy', type: 'dog' });
+
+    // Create two visits
+    const visit1Response = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: '/visits',
+      payload: {
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: '2025-10-15T10:00:00.000Z',
+      },
+    });
+    const visit1Id = (visit1Response.json() as VisitResponse).visit.id;
+
+    const visit2Response = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: '/visits',
+      payload: {
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: '2025-10-16T10:00:00.000Z',
+      },
+    });
+    const visit2Id = (visit2Response.json() as VisitResponse).visit.id;
+
+    // Get valid key for visit1
+    const uploadUrlResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visit1Id}/images/upload-url`,
+      payload: { contentType: 'image/png' },
+    });
+    const { key } = uploadUrlResponse.json() as { url: string; key: string };
+
+    // Try to use visit1's key for visit2
+    const imageResponse = await injectAuthed(app, session.id, {
+      method: 'POST',
+      url: `/visits/${visit2Id}/images`,
+      payload: { key, originalName: 'test.png', contentType: 'image/png' },
+    });
+
+    expect(imageResponse.statusCode).toBe(400);
+    const error = imageResponse.json() as { error: string; message: string };
+    expect(error.error).toBe('invalid_storage_key');
   });
 });

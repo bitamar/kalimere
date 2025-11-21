@@ -15,7 +15,7 @@ import {
   updateCustomerParamsSchema,
   updatePetBodySchema,
 } from '@kalimere/types/customers';
-import { okResponseSchema } from '@kalimere/types/common';
+import { okResponseSchema, uploadUrlResponseSchema } from '@kalimere/types/common';
 import { ensureCustomerOwnership, ensurePetOwnership } from '../middleware/ownership.js';
 import {
   createCustomerForUser,
@@ -24,11 +24,14 @@ import {
   deletePetForCustomer,
   getCustomerForUser,
   getPetForCustomer,
+  getPetImageUploadUrl,
   listCustomersForUser,
   listPetsForCustomer,
   updateCustomerForUser,
   updatePetForCustomer,
 } from '../services/customer-service.js';
+
+import { z } from 'zod';
 
 const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -155,6 +158,7 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (req, reply) => {
+      ensureAuthed(req);
       const customerId = req.params.id;
       const pet = await createPetForCustomer(customerId, req.body);
       return reply.code(201).send({ pet });
@@ -178,8 +182,9 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (req) => {
+      ensureAuthed(req);
       const customerId = req.params.customerId;
-      const pet = await updatePetForCustomer(customerId, req.params.petId, req.body);
+      const pet = await updatePetForCustomer(customerId, req.params.petId, req.body, req.user.id);
       return { pet };
     }
   );
@@ -202,6 +207,30 @@ const customerRoutesPlugin: FastifyPluginAsyncZod = async (app) => {
     async (req) => {
       const customerId = req.params.customerId;
       return deletePetForCustomer(customerId, req.params.petId);
+    }
+  );
+
+  app.post(
+    '/customers/:customerId/pets/:petId/image/upload-url',
+    {
+      preHandler: [
+        app.authenticate,
+        ensureCustomerOwnership('customerId'),
+        ensurePetOwnership('petId'),
+      ],
+      schema: {
+        params: customerPetParamsSchema,
+        body: z.object({ contentType: z.string() }),
+        response: {
+          200: uploadUrlResponseSchema,
+        },
+      },
+    },
+    async (req) => {
+      ensureAuthed(req);
+      const { customerId, petId } = req.params;
+      const { contentType } = req.body;
+      return getPetImageUploadUrl(req.user.id, customerId, petId, contentType);
     }
   );
 

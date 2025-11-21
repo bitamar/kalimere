@@ -91,6 +91,7 @@ export const petSchema = z.object({
   breed: nullableString,
   isSterilized: z.union([z.boolean(), z.null()]),
   isCastrated: z.union([z.boolean(), z.null()]),
+  imageUrl: nullableString,
 });
 
 export const petResponseSchema = z.object({
@@ -119,6 +120,7 @@ export const updatePetBodySchema = z
     breed: optionalNullableString,
     isSterilized: optionalNullableBoolean,
     isCastrated: optionalNullableBoolean,
+    imageUrl: optionalNullableString,
   })
   .strict()
   .superRefine((data, ctx) => {
