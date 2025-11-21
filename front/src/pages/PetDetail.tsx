@@ -12,7 +12,6 @@ import {
   Modal,
   Stack,
   Text,
-  Image,
 } from '@mantine/core';
 import { IconCalendarPlus, IconDots, IconPencil, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -39,6 +38,7 @@ import {
 } from '../components/PetFormModal';
 import { VisitFormModal, type VisitFormSubmitValues } from '../components/VisitFormModal';
 import { usePetUpdateMutation } from '../hooks/usePetUpdateMutation';
+import { PetImage } from '../components/PetImage';
 
 export function PetDetail() {
   const { customerId, petId } = useParams<{ customerId: string; petId: string }>();
@@ -403,16 +403,8 @@ export function PetDetail() {
           </Menu.Dropdown>
         </Menu>
 
-        {ensuredPet.imageUrl && (
-          <Image
-            src={ensuredPet.imageUrl}
-            w={64}
-            h={64}
-            radius="xl"
-            fit="cover"
-            alt={ensuredPet.name}
-          />
-        )}
+        <PetImage pet={ensuredPet} variant="avatar" />
+
         <PageTitle order={2}>{ensuredPet.name}</PageTitle>
         <Badge variant="light" size="lg" color={ensuredPet.type === 'dog' ? 'teal' : 'grape'}>
           {typeLabel}

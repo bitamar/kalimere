@@ -14,6 +14,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
+
 import { IconDots, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -45,6 +46,7 @@ import { HttpError } from '../lib/http';
 import { useApiMutation } from '../lib/useApiMutation';
 import { applyCustomerUpdates } from '../utils/entityUpdates';
 import { usePetUpdateMutation } from '../hooks/usePetUpdateMutation';
+import { PetImage } from '../components/PetImage';
 
 type PetFormState = {
   opened: boolean;
@@ -650,7 +652,9 @@ export function CustomerDetail() {
               editAction={() => openEditPet(pet)}
               onClick={() => navigate(`/customers/${customer.id}/pets/${pet.id}`)}
               className="pet-card"
-            />
+            >
+              <PetImage pet={pet} variant="card" />
+            </EntityCard>
           ))}
         </SimpleGrid>
       )}
