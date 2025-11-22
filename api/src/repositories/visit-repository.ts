@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, countDistinct, eq, gte, lte, sum } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { customers, pets, visitImages, visitNotes, visitTreatments, visits } from '../db/schema.js';
 
@@ -141,8 +141,8 @@ export async function findUpcomingVisitsByUserId(userId: string, limit: number) 
 export async function countVisitsByUserId(userId: string, range: { start: Date; end: Date }) {
   const [row] = await db
     .select({
-      count: count(visits.id),
-      revenue: sql<number>`coalesce(sum(${visitTreatments.priceCents}), 0)`,
+      count: countDistinct(visits.id),
+      revenue: sum(visitTreatments.priceCents),
     })
     .from(visits)
     .innerJoin(customers, eq(customers.id, visits.customerId))

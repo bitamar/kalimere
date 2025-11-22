@@ -1,10 +1,16 @@
 import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../../src/app.js';
-import { createTestUserWithSession, resetDb, seedCustomer, seedPet } from '../utils/db.js';
+import {
+  createTestUserWithSession,
+  resetDb,
+  seedCustomer,
+  seedPet,
+  seedTreatment,
+} from '../utils/db.js';
 import { injectAuthed } from '../utils/inject.js';
 import { db } from '../../src/db/client.js';
-import { visits } from '../../src/db/schema.js';
+import { visitTreatments, visits } from '../../src/db/schema.js';
 
 vi.mock('openid-client', () => ({
   discovery: vi.fn().mockResolvedValue({}),
@@ -83,6 +89,52 @@ describe('routes/dashboard', () => {
       activePets: 2,
       visitsThisMonth: 1,
       totalRevenue: 0,
+    });
+  });
+
+  it('counts visits once even when multiple treatments and sums revenue', async () => {
+    const { user, session } = await createTestUserWithSession();
+    const customer = await seedCustomer(user.id, { name: 'Customer 1' });
+    const pet = await seedPet(customer.id, { name: 'Pet 1' });
+    const treatment1 = await seedTreatment(user.id, { name: 'Bath' });
+    const treatment2 = await seedTreatment(user.id, { name: 'Trim' });
+
+    const now = new Date();
+
+    const [visit] = await db
+      .insert(visits)
+      .values({
+        customerId: customer.id,
+        petId: pet.id,
+        scheduledStartAt: now,
+        title: 'Visit 1',
+        status: 'completed',
+      })
+      .returning();
+
+    await db.insert(visitTreatments).values([
+      { visitId: visit.id, treatmentId: treatment1.id, priceCents: 1500 },
+      { visitId: visit.id, treatmentId: treatment2.id, priceCents: 2500 },
+    ]);
+
+    const response = await injectAuthed(app, session.id, {
+      method: 'GET',
+      url: '/api/dashboard/stats',
+    });
+
+    const result = getJson<{
+      activeCustomers: number;
+      activePets: number;
+      visitsThisMonth: number;
+      totalRevenue: number;
+    }>(response);
+
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toEqual({
+      activeCustomers: 1,
+      activePets: 1,
+      visitsThisMonth: 1,
+      totalRevenue: 4000,
     });
   });
 
