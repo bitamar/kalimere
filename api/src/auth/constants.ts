@@ -13,7 +13,7 @@ export const SESSION_COOKIE_NAME = 'session' as const;
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: true,
-  sameSite: 'none' as const,
+  sameSite: 'lax' as const,
   path: '/',
   maxAge: SESSION_TTL,
 };
