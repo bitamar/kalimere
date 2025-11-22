@@ -44,7 +44,7 @@ describe('App routing', () => {
     renderApp();
 
     await waitFor(() => expect(screen.getAllByText('דאשבורד')[0]).toBeInTheDocument());
-    expect(screen.getByText('kalimere::vet')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ready')).toBeInTheDocument();
   });
 
   it('redirects to login when unauthenticated', async () => {

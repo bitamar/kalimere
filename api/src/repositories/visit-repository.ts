@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, count, eq, gte, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { customers, pets, visitImages, visitNotes, visitTreatments, visits } from '../db/schema.js';
 
@@ -124,7 +124,8 @@ export async function findUpcomingVisitsByUserId(userId: string, limit: number) 
       and(
         eq(customers.userId, userId),
         eq(visits.isDeleted, false),
-        eq(visits.status, 'scheduled')
+        eq(visits.status, 'scheduled'),
+        gte(visits.scheduledStartAt, new Date())
       )
     )
     .orderBy(asc(visits.scheduledStartAt))
@@ -137,24 +138,25 @@ export async function findUpcomingVisitsByUserId(userId: string, limit: number) 
   }));
 }
 
-export async function countVisitsByUserId(
-  userId: string,
-  range: { start: Date; end: Date }
-) {
+export async function countVisitsByUserId(userId: string, range: { start: Date; end: Date }) {
   const [row] = await db
-    .select({ count: count(visits.id) })
+    .select({
+      count: count(visits.id),
+      revenue: sql<number>`coalesce(sum(${visitTreatments.priceCents}), 0)`,
+    })
     .from(visits)
     .innerJoin(customers, eq(customers.id, visits.customerId))
+    .leftJoin(visitTreatments, eq(visitTreatments.visitId, visits.id))
     .where(
       and(
         eq(customers.userId, userId),
         eq(visits.isDeleted, false),
-        and(
-          gte(visits.scheduledStartAt, range.start),
-          lte(visits.scheduledStartAt, range.end)
-        )
+        and(gte(visits.scheduledStartAt, range.start), lte(visits.scheduledStartAt, range.end))
       )
     );
 
-  return row?.count ?? 0;
+  return {
+    count: row?.count ?? 0,
+    revenue: Number(row?.revenue ?? 0),
+  };
 }

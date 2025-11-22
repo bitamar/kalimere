@@ -12,6 +12,7 @@ describe('Dashboard page', () => {
           activeCustomers: 10,
           activePets: 5,
           visitsThisMonth: 20,
+          totalRevenue: 10000,
         };
       }
       if (path === '/api/dashboard/upcoming') {
@@ -47,7 +48,8 @@ describe('Dashboard page', () => {
     renderWithProviders(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Rex - Grooming/)).toBeInTheDocument();
+      expect(screen.getByText('Rex')).toBeInTheDocument();
+      expect(screen.getByText('Grooming')).toBeInTheDocument();
     });
   });
 

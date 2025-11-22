@@ -118,6 +118,7 @@ export function Customers() {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: customersQueryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats() });
     },
   });
 

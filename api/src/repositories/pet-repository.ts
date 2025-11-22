@@ -68,11 +68,7 @@ export async function countActivePetsByUserId(userId: string) {
     .from(pets)
     .innerJoin(customers, eq(customers.id, pets.customerId))
     .where(
-      and(
-        eq(customers.userId, userId),
-        eq(pets.isDeleted, false),
-        eq(customers.isDeleted, false)
-      )
+      and(eq(customers.userId, userId), eq(pets.isDeleted, false), eq(customers.isDeleted, false))
     );
   return row?.count ?? 0;
 }

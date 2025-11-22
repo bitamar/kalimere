@@ -171,6 +171,7 @@ export function CustomerDetail() {
       void queryClient.invalidateQueries({ queryKey: customersListKey });
       void queryClient.invalidateQueries({ queryKey: customerQueryKey });
       void queryClient.invalidateQueries({ queryKey: petsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats() });
     },
   });
 

@@ -16,7 +16,7 @@ vi.mock('../../auth/AuthContext', async (importOriginal) => {
 describe('Header', () => {
   const useAuthMock = vi.mocked(useAuth);
 
-  it('renders user name and logout menu', () => {
+  it('renders user name and logout menu without nesting headers', () => {
     useAuthMock.mockReturnValue({
       user: {
         id: '1',
@@ -31,7 +31,7 @@ describe('Header', () => {
     } as ReturnType<typeof useAuth>);
 
     const setOpened = vi.fn();
-    renderWithProviders(
+    const { container } = renderWithProviders(
       <AuthProvider>
         <AppShell header={{ height: 64 }}>
           <AppShell.Header>
@@ -40,6 +40,9 @@ describe('Header', () => {
         </AppShell>
       </AuthProvider>
     );
+
+    const headers = container.querySelectorAll('header');
+    expect(headers.length).toBe(1);
 
     expect(screen.getByText('Dr. Vet')).toBeInTheDocument();
 

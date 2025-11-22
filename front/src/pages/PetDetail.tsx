@@ -167,6 +167,8 @@ export function PetDetail() {
       closeVisitForm();
       if (!customerId || !petId) return;
       void queryClient.invalidateQueries({ queryKey: petVisitsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.upcomingVisits() });
     },
   });
 
