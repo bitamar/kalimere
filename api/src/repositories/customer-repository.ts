@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { customers } from '../db/schema.js';
 
@@ -71,4 +71,12 @@ export async function softDeleteCustomerById(customerId: string, userId: string)
     )
     .returning({ id: customers.id });
   return rows[0] ?? null;
+}
+
+export async function countActiveCustomersByUserId(userId: string) {
+  const [row] = await db
+    .select({ count: count(customers.id) })
+    .from(customers)
+    .where(and(eq(customers.userId, userId), eq(customers.isDeleted, false)));
+  return row?.count ?? 0;
 }

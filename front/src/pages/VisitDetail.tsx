@@ -218,6 +218,8 @@ export function VisitDetail() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.petVisits(data.customerId, data.petId),
       });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.upcomingVisits() });
     },
   });
 

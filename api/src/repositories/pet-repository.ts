@@ -1,6 +1,6 @@
 import { and, count, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { pets } from '../db/schema.js';
+import { customers, pets } from '../db/schema.js';
 
 export type PetRecord = (typeof pets)['$inferSelect'];
 export type PetInsert = (typeof pets)['$inferInsert'];
@@ -60,4 +60,15 @@ export async function updatePetById(petId: string, values: Partial<PetInsert>) {
 
 export async function softDeletePetById(petId: string) {
   await db.update(pets).set({ isDeleted: true, updatedAt: new Date() }).where(eq(pets.id, petId));
+}
+
+export async function countActivePetsByUserId(userId: string) {
+  const [row] = await db
+    .select({ count: count(pets.id) })
+    .from(pets)
+    .innerJoin(customers, eq(customers.id, pets.customerId))
+    .where(
+      and(eq(customers.userId, userId), eq(pets.isDeleted, false), eq(customers.isDeleted, false))
+    );
+  return row?.count ?? 0;
 }

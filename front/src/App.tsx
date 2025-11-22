@@ -58,7 +58,7 @@ function ProtectedLayout() {
         <Header opened={opened} setOpened={setOpened} />
       </AppShell.Header>
 
-      <AppShell.Navbar>
+      <AppShell.Navbar p="md">
         <Navbar />
       </AppShell.Navbar>
 
